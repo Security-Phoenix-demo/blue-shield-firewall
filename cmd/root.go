@@ -37,6 +37,8 @@ func init() {
 	rootCmd.PersistentFlags().Bool("strict", false, "Strict mode: treat warn actions as block")
 	rootCmd.PersistentFlags().String("fallback-feed", "", "Path to local JSON feed file for offline mode")
 	rootCmd.PersistentFlags().String("report-path", "", "Path to write JSON scan report")
+	rootCmd.PersistentFlags().StringSlice("gitlab-hosts", nil, "GitLab instance hostnames to intercept (e.g. gitlab.example.com)")
+	rootCmd.PersistentFlags().StringSlice("extra-registries", nil, "Additional registries as ecosystem:host (e.g. npm:packages.example.com)")
 
 	_ = viper.BindPFlag("api_url", rootCmd.PersistentFlags().Lookup("api-url"))
 	_ = viper.BindPFlag("api_key", rootCmd.PersistentFlags().Lookup("api-key"))
@@ -47,6 +49,8 @@ func init() {
 	_ = viper.BindPFlag("strict_mode", rootCmd.PersistentFlags().Lookup("strict"))
 	_ = viper.BindPFlag("fallback_feed", rootCmd.PersistentFlags().Lookup("fallback-feed"))
 	_ = viper.BindPFlag("report_path", rootCmd.PersistentFlags().Lookup("report-path"))
+	_ = viper.BindPFlag("gitlab_hosts", rootCmd.PersistentFlags().Lookup("gitlab-hosts"))
+	_ = viper.BindPFlag("extra_registries", rootCmd.PersistentFlags().Lookup("extra-registries"))
 }
 
 func initConfig() {

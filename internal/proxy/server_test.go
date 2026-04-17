@@ -892,6 +892,226 @@ func TestStrictMode_WarnBecomesBlock(t *testing.T) {
 	_ = handler
 }
 
+// --- GitLab matcher tests ---
+
+func TestGitLabMatcher_NpmPackage(t *testing.T) {
+	m := &registry.GitLabMatcher{}
+	ref, err := m.Match("https://gitlab.com/api/v4/projects/12345/packages/npm/@myorg/utils/-/@myorg/utils-2.1.0.tgz")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if ref == nil {
+		t.Fatal("expected match, got nil")
+	}
+	if ref.Ecosystem != "npm" {
+		t.Errorf("ecosystem: got %s, want npm", ref.Ecosystem)
+	}
+	if ref.Name != "@myorg/utils" {
+		t.Errorf("name: got %s, want @myorg/utils", ref.Name)
+	}
+	if ref.Version != "2.1.0" {
+		t.Errorf("version: got %s, want 2.1.0", ref.Version)
+	}
+}
+
+func TestGitLabMatcher_PypiPackage(t *testing.T) {
+	m := &registry.GitLabMatcher{}
+	ref, err := m.Match("https://gitlab.com/api/v4/projects/99/packages/pypi/files/abc123/requests-2.31.0.tar.gz")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if ref == nil {
+		t.Fatal("expected match, got nil")
+	}
+	if ref.Ecosystem != "pypi" {
+		t.Errorf("ecosystem: got %s, want pypi", ref.Ecosystem)
+	}
+	if ref.Name != "requests" {
+		t.Errorf("name: got %s, want requests", ref.Name)
+	}
+	if ref.Version != "2.31.0" {
+		t.Errorf("version: got %s, want 2.31.0", ref.Version)
+	}
+}
+
+func TestGitLabMatcher_MavenPackage(t *testing.T) {
+	m := &registry.GitLabMatcher{}
+	ref, err := m.Match("https://gitlab.com/api/v4/projects/42/packages/maven/com/example/mylib/1.0.0/mylib-1.0.0.jar")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if ref == nil {
+		t.Fatal("expected match, got nil")
+	}
+	if ref.Ecosystem != "maven" {
+		t.Errorf("ecosystem: got %s, want maven", ref.Ecosystem)
+	}
+	if ref.Name != "com.example:mylib" {
+		t.Errorf("name: got %s, want com.example:mylib", ref.Name)
+	}
+	if ref.Version != "1.0.0" {
+		t.Errorf("version: got %s, want 1.0.0", ref.Version)
+	}
+}
+
+func TestGitLabMatcher_GenericPackage(t *testing.T) {
+	m := &registry.GitLabMatcher{}
+	ref, err := m.Match("https://gitlab.com/api/v4/projects/42/packages/generic/mylib/1.0.0/mylib-1.0.0.tar.gz")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if ref == nil {
+		t.Fatal("expected match, got nil")
+	}
+	if ref.Ecosystem != "generic" {
+		t.Errorf("ecosystem: got %s, want generic", ref.Ecosystem)
+	}
+	if ref.Name != "mylib" {
+		t.Errorf("name: got %s, want mylib", ref.Name)
+	}
+	if ref.Version != "1.0.0" {
+		t.Errorf("version: got %s, want 1.0.0", ref.Version)
+	}
+}
+
+func TestGitLabMatcher_SelfHosted(t *testing.T) {
+	m := &registry.GitLabMatcher{Hosts: []string{"gitlab.com", "gitlab.internal.corp"}}
+	ref, err := m.Match("https://gitlab.internal.corp/api/v4/projects/7/packages/npm/lodash/-/lodash-4.17.21.tgz")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if ref == nil {
+		t.Fatal("expected match for self-hosted GitLab, got nil")
+	}
+	if ref.Ecosystem != "npm" {
+		t.Errorf("ecosystem: got %s, want npm", ref.Ecosystem)
+	}
+	if ref.Name != "lodash" {
+		t.Errorf("name: got %s, want lodash", ref.Name)
+	}
+}
+
+func TestGitLabMatcher_RejectsNonGitLab(t *testing.T) {
+	m := &registry.GitLabMatcher{}
+	ref, err := m.Match("https://example.com/api/v4/projects/1/packages/npm/foo/-/foo-1.0.0.tgz")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if ref != nil {
+		t.Errorf("expected nil for non-GitLab URL, got %+v", ref)
+	}
+}
+
+// --- Custom matcher tests ---
+
+func TestCustomMatcher_MatchesConfiguredHost(t *testing.T) {
+	m := &registry.CustomMatcher{
+		Registries: []registry.CustomRegistryConfig{
+			{Ecosystem: "npm", Host: "packages.example.com"},
+		},
+	}
+	ref, err := m.Match("https://packages.example.com/downloads/@myco/sdk/-/@myco/sdk-3.0.0.tgz")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if ref == nil {
+		t.Fatal("expected match, got nil")
+	}
+	if ref.Ecosystem != "npm" {
+		t.Errorf("ecosystem: got %s, want npm", ref.Ecosystem)
+	}
+}
+
+func TestCustomMatcher_RejectsUnknownHost(t *testing.T) {
+	m := &registry.CustomMatcher{
+		Registries: []registry.CustomRegistryConfig{
+			{Ecosystem: "npm", Host: "packages.example.com"},
+		},
+	}
+	ref, err := m.Match("https://other.example.com/foo-1.0.0.tgz")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if ref != nil {
+		t.Errorf("expected nil for unknown host, got %+v", ref)
+	}
+}
+
+func TestParseCustomRegistry_Valid(t *testing.T) {
+	reg, err := registry.ParseCustomRegistry("npm:packages.example.com")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if reg.Ecosystem != "npm" {
+		t.Errorf("ecosystem: got %s, want npm", reg.Ecosystem)
+	}
+	if reg.Host != "packages.example.com" {
+		t.Errorf("host: got %s, want packages.example.com", reg.Host)
+	}
+}
+
+func TestParseCustomRegistry_Invalid(t *testing.T) {
+	tests := []string{"", "npm", ":host", "npm:", "nocolon"}
+	for _, s := range tests {
+		_, err := registry.ParseCustomRegistry(s)
+		if err == nil {
+			t.Errorf("expected error for %q", s)
+		}
+	}
+}
+
+// --- Config-aware composite matcher tests ---
+
+func TestCompositeMatchersWithConfig_GitLab(t *testing.T) {
+	cm := registry.NewCompositeMatchersWithConfig(registry.MatcherConfig{
+		GitLabHosts: []string{"gitlab.mycompany.com"},
+	})
+
+	// Should match gitlab.com (always included)
+	ref, err := cm.Match("https://gitlab.com/api/v4/projects/1/packages/npm/foo/-/foo-1.0.0.tgz")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if ref == nil {
+		t.Fatal("expected gitlab.com match, got nil")
+	}
+
+	// Should also match the custom host
+	ref, err = cm.Match("https://gitlab.mycompany.com/api/v4/projects/1/packages/npm/bar/-/bar-2.0.0.tgz")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if ref == nil {
+		t.Fatal("expected gitlab.mycompany.com match, got nil")
+	}
+
+	// Should still match built-in registries
+	ref, err = cm.Match("https://registry.npmjs.org/express/-/express-4.18.2.tgz")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if ref == nil {
+		t.Fatal("expected npmjs.org match, got nil")
+	}
+}
+
+func TestCompositeMatchersWithConfig_ExtraRegistries(t *testing.T) {
+	cm := registry.NewCompositeMatchersWithConfig(registry.MatcherConfig{
+		ExtraRegistries: []string{"npm:nexus.internal.com", "pypi:pypi.internal.com"},
+	})
+
+	ref, err := cm.Match("https://nexus.internal.com/repository/npm/@myco/sdk-3.0.0.tgz")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if ref == nil {
+		t.Fatal("expected nexus.internal.com match, got nil")
+	}
+	if ref.Ecosystem != "npm" {
+		t.Errorf("ecosystem: got %s, want npm", ref.Ecosystem)
+	}
+}
+
 // --- TLS certificate validity test ---
 
 func TestGenerateCA_ProducesValidTLSCert(t *testing.T) {

@@ -1,0 +1,36 @@
+# Phoenix Firewall with GitLab Package Registry interception
+#
+# This example protects packages installed from both public registries AND
+# your self-hosted GitLab package registry. The proxy intercepts npm/pip/maven
+# downloads from your GitLab instance and checks them against the Phoenix API.
+#
+# Set these CI/CD Variables (Settings > CI/CD > Variables):
+#   PHOENIX_API_KEY: Your Phoenix API key (masked)
+
+include:
+  - remote: 'https://raw.githubusercontent.com/Security-Phoenix-demo/phoenix-firewall/main/integrations/gitlab-ci/phoenix-firewall.yml'
+
+variables:
+  # Replace with your self-hosted GitLab hostname
+  PHOENIX_GITLAB_HOSTS: "gitlab.yourcompany.com"
+  PHOENIX_MODE: "enforce"
+  PHOENIX_STRICT: "false"
+
+stages:
+  - security
+  - build
+
+# Scan packages from both public and private registries
+phoenix-firewall-check:
+  extends: .phoenix-firewall-base
+  stage: security
+  script:
+    - echo "Phoenix Firewall active — intercepting public + GitLab registry downloads"
+    - npm ci          # Packages from both npmjs.org and gitlab.yourcompany.com are checked
+    - pip install -r requirements.txt
+
+build:
+  stage: build
+  needs: ["phoenix-firewall-check"]
+  script:
+    - echo "Build proceeds only if no blocked packages"

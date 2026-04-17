@@ -73,7 +73,15 @@ func (s *Server) StartWithContext(ctx context.Context) error {
 	}
 
 	// Set up request handler with LRU cache
-	matcher := registry.NewCompositeMatchers()
+	var matcher registry.RegistryMatcher
+	if len(s.cfg.GitLabHosts) > 0 || len(s.cfg.ExtraRegistries) > 0 {
+		matcher = registry.NewCompositeMatchersWithConfig(registry.MatcherConfig{
+			GitLabHosts:     s.cfg.GitLabHosts,
+			ExtraRegistries: s.cfg.ExtraRegistries,
+		})
+	} else {
+		matcher = registry.NewCompositeMatchers()
+	}
 	fwClient := client.New(s.cfg.APIUrl, s.cfg.APIKey)
 	s.handler = NewRequestHandler(matcher, fwClient, s.cfg.Verbose)
 	cache := NewResultCache(defaultCacheSize, defaultCacheTTL)

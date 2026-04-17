@@ -24,19 +24,27 @@ type Config struct {
 	FallbackFeed string
 	// ReportPath is the file path where scan reports are written.
 	ReportPath string
+	// ExtraRegistries is a list of additional registry domains to intercept.
+	// Format: "ecosystem:hostname" (e.g. "npm:gitlab.example.com").
+	ExtraRegistries []string
+	// GitLabHosts is a list of GitLab instance hostnames whose package registries
+	// should be intercepted (e.g. "gitlab.example.com"). gitlab.com is always included.
+	GitLabHosts []string
 }
 
 // Load reads configuration from viper (flags + env vars) and returns a Config.
 func Load() *Config {
 	return &Config{
-		APIUrl:       viper.GetString("api_url"),
-		APIKey:       viper.GetString("api_key"),
-		Port:         viper.GetInt("port"),
-		Verbose:      viper.GetBool("verbose"),
-		LogFormat:    viper.GetString("log_format"),
-		StrictMode:   viper.GetBool("strict_mode"),
-		CIMode:       viper.GetBool("ci_mode"),
-		FallbackFeed: viper.GetString("fallback_feed"),
-		ReportPath:   viper.GetString("report_path"),
+		APIUrl:          viper.GetString("api_url"),
+		APIKey:          viper.GetString("api_key"),
+		Port:            viper.GetInt("port"),
+		Verbose:         viper.GetBool("verbose"),
+		LogFormat:       viper.GetString("log_format"),
+		StrictMode:      viper.GetBool("strict_mode"),
+		CIMode:          viper.GetBool("ci_mode"),
+		FallbackFeed:    viper.GetString("fallback_feed"),
+		ReportPath:      viper.GetString("report_path"),
+		ExtraRegistries: viper.GetStringSlice("extra_registries"),
+		GitLabHosts:     viper.GetStringSlice("gitlab_hosts"),
 	}
 }

@@ -10,6 +10,8 @@
 #   PHOENIX_FAIL_ON: block | warn | any (default: block)
 #   PHOENIX_STRICT: true | false (default: false)
 #   PHOENIX_MIN_AGE_HOURS: quarantine threshold (default: 0)
+#   PHOENIX_GITLAB_HOSTS: comma-separated self-hosted GitLab hosts (default: gitlab.com)
+#   PHOENIX_EXTRA_REGISTRIES: comma-separated ecosystem:host pairs (e.g. npm:nexus.internal.com)
 
 .phoenix-firewall-base:
   image: alpine:3.19
@@ -39,6 +41,8 @@
       EXTRA_FLAGS=""
       if [ "$PHOENIX_STRICT" = "true" ]; then EXTRA_FLAGS="$EXTRA_FLAGS --strict"; fi
       if [ "$PHOENIX_MIN_AGE_HOURS" != "0" ]; then EXTRA_FLAGS="$EXTRA_FLAGS --min-package-age-hours $PHOENIX_MIN_AGE_HOURS"; fi
+      if [ -n "$PHOENIX_GITLAB_HOSTS" ]; then EXTRA_FLAGS="$EXTRA_FLAGS --gitlab-hosts $PHOENIX_GITLAB_HOSTS"; fi
+      if [ -n "$PHOENIX_EXTRA_REGISTRIES" ]; then EXTRA_FLAGS="$EXTRA_FLAGS --extra-registries $PHOENIX_EXTRA_REGISTRIES"; fi
       eval $(phoenix-firewall \
         --api-key "$PHOENIX_API_KEY" \
         --api-url "$PHOENIX_API_URL" \
