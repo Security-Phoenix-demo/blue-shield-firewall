@@ -1,8 +1,14 @@
-# GoReleaser configuration for Phoenix Firewall
-# Docs: https://goreleaser.com
+# Phoenix Supply Chain Firewall — GoReleaser configuration
+# Userland release: unsigned binaries + checksums.
+# Signing deferred: Apple Developer Program + Windows EV cert procurement pending.
 version: 2
 
 project_name: phoenix-firewall
+
+before:
+  hooks:
+    - go mod tidy
+    - go generate ./...
 
 builds:
   - id: phoenix-firewall
@@ -10,11 +16,6 @@ builds:
     binary: phoenix-firewall
     env:
       - CGO_ENABLED=0
-    ldflags:
-      - -s -w
-      - -X github.com/nicokoenig/phoenix-firewall/cmd.Version={{ .Version }}
-      - -X github.com/nicokoenig/phoenix-firewall/cmd.GitCommit={{ .ShortCommit }}
-      - -X github.com/nicokoenig/phoenix-firewall/cmd.BuildDate={{ .Date }}
     goos:
       - linux
       - darwin
@@ -25,32 +26,63 @@ builds:
     ignore:
       - goos: windows
         goarch: arm64
+    ldflags:
+      - -s -w
+      - -X github.com/Security-Phoenix-demo/phoenix-firewall/cmd.version={{.Version}}
+      - -X github.com/Security-Phoenix-demo/phoenix-firewall/cmd.commit={{.Commit}}
+      - -X github.com/Security-Phoenix-demo/phoenix-firewall/cmd.date={{.Date}}
 
 archives:
   - id: default
-    builds:
-      - phoenix-firewall
-    format: binary
-    name_template: "{{ .ProjectName }}-{{ .Os }}-{{ .Arch }}"
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - README.md
+      - LICENSE
 
 checksum:
-  name_template: "checksums-sha256.txt"
+  name_template: "checksums.txt"
   algorithm: sha256
+
+sboms:
+  - artifacts: archive
+    documents:
+      - "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}.sbom.json"
 
 changelog:
   sort: asc
+  use: github
   filters:
     exclude:
       - "^docs:"
       - "^test:"
       - "^chore:"
       - Merge pull request
-      - Merge branch
+      - Merge remote-tracking branch
 
 release:
   github:
-    owner: nicokoenig
+    owner: Security-Phoenix-demo
     name: phoenix-firewall
-  name_template: "Phoenix Firewall v{{ .Version }}"
-  draft: false
-  prerelease: auto
+  name_template: "{{.ProjectName}} v{{.Version}}"
+  header: |
+    ## Phoenix Supply Chain Firewall v{{.Version}}
+
+    ### Installation (userland — no root, no MDM)
+
+    ```bash
+    # macOS / Linux
+    curl -sSfL https://github.com/Security-Phoenix-demo/phoenix-firewall/releases/download/v{{.Version}}/phoenix-firewall_{{.Version}}_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/').tar.gz | tar -xz
+    mv phoenix-firewall ~/.local/bin/
+    phoenix-firewall init
+    phoenix-firewall enroll --api-key <your-key>
+    ```
+
+    > **Note on code signing**: binaries in this release are unsigned.
+    > Apple notarization and Windows EV code signing are pending procurement.
+    > Verify integrity via the provided `checksums.txt` (SHA-256).
+
+  footer: |
+    **Full Changelog**: https://github.com/Security-Phoenix-demo/phoenix-firewall/compare/{{.PreviousTag}}...{{.Tag}}
