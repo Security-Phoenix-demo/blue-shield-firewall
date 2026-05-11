@@ -3,32 +3,66 @@
 
 package service
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+)
+
+func binaryPath() string {
+	if p, err := exec.LookPath("phoenix-firewall.exe"); err == nil {
+		return p
+	}
+	appData := os.Getenv("APPDATA")
+	return filepath.Join(appData, "PhoenixFirewall", "phoenix-firewall.exe")
+}
 
 type windowsManager struct{}
 
 func New() Manager { return &windowsManager{} }
 
 func (m *windowsManager) Install() error {
-	fmt.Println("[service] installing Windows SCM service (stub — full implementation in B7)")
+	bin := binaryPath()
+	// Create scheduled task at user logon (no admin required)
+	args := []string{
+		"/Create", "/F", "/TN", `PhoenixFirewall\Agent`,
+		"/TR", fmt.Sprintf(`"%s" system`, bin),
+		"/SC", "ONLOGON",
+		"/RL", "LIMITED",
+	}
+	out, err := exec.Command("schtasks", args...).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("schtasks create: %w: %s", err, out)
+	}
 	return nil
 }
 
 func (m *windowsManager) Uninstall() error {
-	fmt.Println("[service] uninstall SCM service (stub)")
+	out, err := exec.Command("schtasks", "/Delete", "/F", "/TN", `PhoenixFirewall\Agent`).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("schtasks delete: %w: %s", err, out)
+	}
 	return nil
 }
 
 func (m *windowsManager) Start() error {
-	fmt.Println("[service] start SCM service (stub)")
+	out, err := exec.Command("schtasks", "/Run", "/TN", `PhoenixFirewall\Agent`).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("schtasks run: %w: %s", err, out)
+	}
 	return nil
 }
 
 func (m *windowsManager) Stop() error {
-	fmt.Println("[service] stop SCM service (stub)")
+	out, err := exec.Command("schtasks", "/End", "/TN", `PhoenixFirewall\Agent`).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("schtasks end: %w: %s", err, out)
+	}
 	return nil
 }
 
 func (m *windowsManager) Status() (string, error) {
-	return "stub — not yet implemented", nil
+	out, err := exec.Command("schtasks", "/Query", "/TN", `PhoenixFirewall\Agent`, "/FO", "LIST").Output()
+	return string(out), err
 }
