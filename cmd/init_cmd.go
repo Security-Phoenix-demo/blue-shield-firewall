@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/Security-Phoenix-demo/phoenix-firewall/internal/proxy"
 	"github.com/Security-Phoenix-demo/phoenix-firewall/internal/shim"
 	"github.com/spf13/cobra"
 )
@@ -73,11 +74,21 @@ mode = "open"
 		fmt.Printf("[phoenix-firewall] %s already exists, skipping\n", tomlPath)
 	}
 
-	// Write agent-bridge.json (used by coding agent hooks for local routing)
+	// Generate the MITM CA certificate (needed by shims to inject into PM env vars)
+	fmt.Println("[phoenix-firewall] generating MITM CA certificate...")
+	if _, err := proxy.EnsureCA(cfgDir); err != nil {
+		return fmt.Errorf("generate CA: %w", err)
+	}
+	caPath := filepath.Join(cfgDir, "phoenix-ca.crt")
+	fmt.Printf("[phoenix-firewall] CA certificate: %s\n", caPath)
+
+	// Write agent-bridge.json (used by coding agent hooks and shims for local routing)
 	bridgePath := filepath.Join(cfgDir, "agent-bridge.json")
-	bridge := map[string]string{
+	bridge := map[string]interface{}{
 		"socket_path":  filepath.Join(cfgDir, "worker.sock"),
 		"api_base_url": apiURL,
+		"proxy_port":   8080,
+		"ca_path":      caPath,
 		"version":      "v4-userland",
 	}
 	bridgeBytes, _ := json.MarshalIndent(bridge, "", "  ")
