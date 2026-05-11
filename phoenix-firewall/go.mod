@@ -1,4 +1,4 @@
-module github.com/nicokoenig/phoenix-firewall
+module github.com/Security-Phoenix-demo/phoenix-firewall
 
 go 1.23.0
 

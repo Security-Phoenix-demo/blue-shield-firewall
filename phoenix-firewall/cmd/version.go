@@ -8,7 +8,7 @@ import (
 
 // Version is set at build time via ldflags:
 //
-//	go build -ldflags "-X github.com/nicokoenig/phoenix-firewall/cmd.Version=1.0.0"
+//	go build -ldflags "-X github.com/Security-Phoenix-demo/phoenix-firewall/cmd.Version=1.0.0"
 var (
 	Version   = "dev"
 	GitCommit = "unknown"

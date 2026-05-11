@@ -9,10 +9,10 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/nicokoenig/phoenix-firewall/internal/client"
-	"github.com/nicokoenig/phoenix-firewall/internal/config"
-	"github.com/nicokoenig/phoenix-firewall/internal/proxy"
-	"github.com/nicokoenig/phoenix-firewall/internal/registry"
+	"github.com/Security-Phoenix-demo/phoenix-firewall/internal/client"
+	"github.com/Security-Phoenix-demo/phoenix-firewall/internal/config"
+	"github.com/Security-Phoenix-demo/phoenix-firewall/internal/proxy"
+	"github.com/Security-Phoenix-demo/phoenix-firewall/internal/registry"
 	"github.com/spf13/cobra"
 )
 

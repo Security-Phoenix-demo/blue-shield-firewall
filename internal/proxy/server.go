@@ -12,9 +12,9 @@ import (
 	"time"
 
 	"github.com/elazarl/goproxy"
-	"github.com/nicokoenig/phoenix-firewall/internal/client"
-	"github.com/nicokoenig/phoenix-firewall/internal/config"
-	"github.com/nicokoenig/phoenix-firewall/internal/registry"
+	"github.com/Security-Phoenix-demo/phoenix-firewall/internal/client"
+	"github.com/Security-Phoenix-demo/phoenix-firewall/internal/config"
+	"github.com/Security-Phoenix-demo/phoenix-firewall/internal/registry"
 )
 
 const (

@@ -2,7 +2,7 @@
 # Cross-platform build matrix with SHA256 checksums
 
 BINARY      := phoenix-firewall
-MODULE      := github.com/nicokoenig/phoenix-firewall
+MODULE      := github.com/Security-Phoenix-demo/phoenix-firewall
 VERSION     ?= dev
 GIT_COMMIT  ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 BUILD_DATE  ?= $(shell date -u '+%Y-%m-%dT%H:%M:%SZ')
