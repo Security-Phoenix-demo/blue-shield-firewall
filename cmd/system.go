@@ -11,6 +11,7 @@ import (
 
 	"github.com/Security-Phoenix-demo/phoenix-firewall/internal/config"
 	"github.com/Security-Phoenix-demo/phoenix-firewall/internal/proxy"
+	"github.com/Security-Phoenix-demo/phoenix-firewall/internal/service"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -27,8 +28,12 @@ The package manager shims (installed by 'phoenix-firewall init') set
 HTTPS_PROXY=http://127.0.0.1:8080 and PM-specific CA env vars so that
 all registry traffic is intercepted and evaluated before installation.
 
-Use 'phoenix-firewall system install' to register as an OS user service.
-Use 'phoenix-firewall system start|stop|status' to manage it.`,
+Subcommands manage the OS user service (LaunchAgent / systemd --user / schtasks):
+  phoenix-firewall system install   — write service definition
+  phoenix-firewall system start     — install and activate at login
+  phoenix-firewall system stop      — stop running service
+  phoenix-firewall system uninstall — remove service definition
+  phoenix-firewall system status    — show service status`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return runSystemMode()
 	},
@@ -36,15 +41,31 @@ Use 'phoenix-firewall system start|stop|status' to manage it.`,
 
 var systemInstallCmd = &cobra.Command{
 	Use:   "install",
-	Short: "Install phoenix-firewall as an OS user service",
+	Short: "Write the OS user service definition (does not start it)",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return installService()
 	},
 }
 
+var systemStartCmd = &cobra.Command{
+	Use:   "start",
+	Short: "Install and activate the OS user service",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return startService()
+	},
+}
+
+var systemStopCmd = &cobra.Command{
+	Use:   "stop",
+	Short: "Stop the running OS user service",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return stopService()
+	},
+}
+
 var systemUninstallCmd = &cobra.Command{
 	Use:   "uninstall",
-	Short: "Uninstall the phoenix-firewall OS user service",
+	Short: "Stop and remove the OS user service definition",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return uninstallService()
 	},
@@ -52,7 +73,7 @@ var systemUninstallCmd = &cobra.Command{
 
 var systemStatusCmd = &cobra.Command{
 	Use:   "status",
-	Short: "Show service status and agent health",
+	Short: "Show OS user service status",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return showStatus()
 	},
@@ -111,22 +132,59 @@ func runSystemMode() error {
 }
 
 func installService() error {
-	fmt.Fprintln(os.Stdout, "[phoenix-firewall] installing OS user service (not yet implemented — see internal/service/)")
+	mgr := service.New()
+	if err := mgr.Install(); err != nil {
+		return fmt.Errorf("install service: %w", err)
+	}
+	fmt.Println("[phoenix-firewall] service definition written")
+	fmt.Println("[phoenix-firewall] run 'phoenix-firewall system start' to activate at login")
+	return nil
+}
+
+func startService() error {
+	mgr := service.New()
+	if err := mgr.Start(); err != nil {
+		return fmt.Errorf("start service: %w", err)
+	}
+	fmt.Println("[phoenix-firewall] service started and enabled at login")
+	return nil
+}
+
+func stopService() error {
+	mgr := service.New()
+	if err := mgr.Stop(); err != nil {
+		return fmt.Errorf("stop service: %w", err)
+	}
+	fmt.Println("[phoenix-firewall] service stopped")
 	return nil
 }
 
 func uninstallService() error {
-	fmt.Fprintln(os.Stdout, "[phoenix-firewall] uninstalling OS user service (not yet implemented — see internal/service/)")
+	mgr := service.New()
+	if err := mgr.Uninstall(); err != nil {
+		return fmt.Errorf("uninstall service: %w", err)
+	}
+	fmt.Println("[phoenix-firewall] service removed")
 	return nil
 }
 
 func showStatus() error {
-	fmt.Fprintln(os.Stdout, "[phoenix-firewall] service status: not yet implemented")
+	mgr := service.New()
+	out, err := mgr.Status()
+	if err != nil {
+		// Status check errors are informational — print anyway
+		fmt.Fprintf(os.Stderr, "[phoenix-firewall] status check error: %v\n", err)
+	}
+	if out != "" {
+		fmt.Print(out)
+	}
 	return nil
 }
 
 func init() {
 	systemCmd.AddCommand(systemInstallCmd)
+	systemCmd.AddCommand(systemStartCmd)
+	systemCmd.AddCommand(systemStopCmd)
 	systemCmd.AddCommand(systemUninstallCmd)
 	systemCmd.AddCommand(systemStatusCmd)
 	rootCmd.AddCommand(systemCmd)

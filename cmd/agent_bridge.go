@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
+	"github.com/Security-Phoenix-demo/phoenix-firewall/internal/client"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -18,6 +20,16 @@ type agentBridgeConfig struct {
 	SocketPath string `json:"socket_path"`
 	APIBaseURL string `json:"api_base_url"`
 	Version    string `json:"version"`
+}
+
+// agentBridgeResult is the JSON printed to stdout by agent-bridge.
+type agentBridgeResult struct {
+	Verdict    string  `json:"verdict"`
+	Action     string  `json:"action"`
+	Score      float64 `json:"score"`
+	Confidence float64 `json:"confidence"`
+	Reason     string  `json:"reason"`
+	Source     string  `json:"source"`
 }
 
 var agentBridgeCmd = &cobra.Command{
@@ -45,7 +57,11 @@ func runAgentBridge(ecosystem, pkg, command string) error {
 	// TODO(B5): IPC call to worker over Unix socket / named pipe
 	// For now: passthrough allow (will be wired in B5 implementation)
 	_ = bridgeCfg
-	fmt.Println(`{"verdict":"allow","source":"local_worker"}`)
+	printResult(agentBridgeResult{
+		Verdict: "allow",
+		Action:  "allow",
+		Source:  "local_worker",
+	})
 	return nil
 }
 
@@ -76,24 +92,116 @@ func discoveryPaths() []string {
 	return paths
 }
 
+// agentBridgeFallback calls the Phoenix backend directly when no local worker is running.
 func agentBridgeFallback(ecosystem, pkg, command string) error {
 	apiURL := viper.GetString("api_url")
-	apiKey := os.Getenv("PHOENIX_API_KEY")
+	apiKey := viper.GetString("api_key")
+	if apiKey == "" {
+		apiKey = os.Getenv("PHOENIX_API_KEY")
+	}
+
 	if apiKey == "" {
 		// Fail-open when no key configured (matches R-FUNC-070 tier-default)
-		fmt.Println(`{"verdict":"allow","source":"fallback_no_key"}`)
+		fmt.Fprintf(os.Stderr, "[agent-bridge] no API key configured — failing open\n")
+		printResult(agentBridgeResult{
+			Verdict: "allow",
+			Action:  "allow",
+			Source:  "fallback_no_key",
+		})
 		return nil
 	}
-	fmt.Fprintf(os.Stderr, "[agent-bridge] fallback to backend %s ecosystem=%s package=%s\n", apiURL, ecosystem, pkg)
-	// TODO: implement HTTP call to /api/v1/firewall/agent/evaluate
-	fmt.Println(`{"verdict":"allow","source":"backend_fallback"}`)
-	_ = command
+
+	// If pkg is empty, try to extract it from the full command string
+	if pkg == "" {
+		pkg = extractPackageFromCommand(command)
+	}
+	if pkg == "" {
+		// Nothing to evaluate
+		printResult(agentBridgeResult{
+			Verdict: "allow",
+			Action:  "allow",
+			Source:  "fallback_no_package",
+		})
+		return nil
+	}
+
+	name, version := splitNameVersion(pkg)
+	fmt.Fprintf(os.Stderr, "[agent-bridge] backend fallback: %s ecosystem=%s pkg=%s@%s\n",
+		apiURL, ecosystem, name, version)
+
+	c := client.New(apiURL, apiKey)
+	result, err := c.Check(ecosystem, name, version)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "[agent-bridge] backend error: %v — failing open\n", err)
+		printResult(agentBridgeResult{
+			Verdict: "allow",
+			Action:  "allow",
+			Source:  "fallback_error",
+			Reason:  err.Error(),
+		})
+		return nil
+	}
+
+	verdict := result.Verdict
+	if verdict == "" {
+		if result.Allowed {
+			verdict = "safe"
+		} else {
+			verdict = "malicious"
+		}
+	}
+	printResult(agentBridgeResult{
+		Verdict:    verdict,
+		Action:     result.Action,
+		Score:      result.Score,
+		Confidence: result.Confidence,
+		Reason:     result.Reason,
+		Source:     "backend_evaluate",
+	})
 	return nil
+}
+
+// splitNameVersion splits "lodash@1.2.3" into ("lodash", "1.2.3").
+// Handles npm scoped packages like "@scope/pkg@1.0.0".
+func splitNameVersion(pkg string) (name, version string) {
+	// npm scoped package: @scope/pkg@version — last @ after position 0
+	if strings.HasPrefix(pkg, "@") {
+		if idx := strings.LastIndex(pkg[1:], "@"); idx >= 0 {
+			split := idx + 1
+			return pkg[:split], pkg[split+1:]
+		}
+		return pkg, ""
+	}
+	if idx := strings.LastIndex(pkg, "@"); idx > 0 {
+		return pkg[:idx], pkg[idx+1:]
+	}
+	return pkg, ""
+}
+
+// extractPackageFromCommand pulls a package name from a command string like
+// "npm install lodash" or "pip install requests==2.28.0".
+func extractPackageFromCommand(cmd string) string {
+	parts := strings.Fields(strings.TrimSpace(cmd))
+	// Skip PM binary and subcommand ("npm install", "pip install", "cargo add", etc.)
+	if len(parts) >= 3 {
+		// Return the first non-flag argument
+		for _, p := range parts[2:] {
+			if !strings.HasPrefix(p, "-") {
+				return p
+			}
+		}
+	}
+	return ""
+}
+
+func printResult(r agentBridgeResult) {
+	b, _ := json.Marshal(r)
+	fmt.Println(string(b))
 }
 
 func init() {
 	agentBridgeCmd.Flags().String("ecosystem", "auto", "Package ecosystem (npm, pip, cargo, etc.)")
-	agentBridgeCmd.Flags().String("package", "", "Package name to evaluate")
+	agentBridgeCmd.Flags().String("package", "", "Package name to evaluate (name@version)")
 	agentBridgeCmd.Flags().String("command", "", "Full install command string")
 	agentBridgeCmd.Flags().String("trigger", "bridge", "Trigger source (bridge, mcp, hook)")
 	rootCmd.AddCommand(agentBridgeCmd)
