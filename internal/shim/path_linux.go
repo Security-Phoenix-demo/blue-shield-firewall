@@ -6,12 +6,16 @@ package shim
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 )
 
-const shimDir = "/usr/local/lib/phoenix-firewall/shims"
-const profileDFile = "/etc/profile.d/phoenix-firewall.sh"
+func UserShimDir() string {
+	home, _ := os.UserHomeDir()
+	return filepath.Join(home, ".local", "bin")
+}
 
 func InstallPATH() error {
+	shimDir := UserShimDir()
 	if err := os.MkdirAll(shimDir, 0755); err != nil {
 		return fmt.Errorf("create shim dir: %w", err)
 	}
@@ -19,12 +23,45 @@ func InstallPATH() error {
 	if err := g.Generate(); err != nil {
 		return err
 	}
-	script := fmt.Sprintf(`# Phoenix Supply Chain Firewall — added by phoenix-firewall init
-export PATH="%s:$PATH"
-`, shimDir)
-	return os.WriteFile(profileDFile, []byte(script), 0644)
+	home, _ := os.UserHomeDir()
+	line := fmt.Sprintf("\n# Phoenix Supply Chain Firewall\nexport PATH=\"%s:$PATH\"\n", shimDir)
+	for _, rc := range []string{".profile", ".bashrc", ".zprofile", ".zshrc"} {
+		rcPath := filepath.Join(home, rc)
+		if _, err := os.Stat(rcPath); os.IsNotExist(err) {
+			continue
+		}
+		content, _ := os.ReadFile(rcPath)
+		if !containsShimEntry(string(content)) {
+			f, err := os.OpenFile(rcPath, os.O_APPEND|os.O_WRONLY, 0644)
+			if err != nil {
+				continue
+			}
+			_, _ = f.WriteString(line)
+			f.Close()
+		}
+	}
+	fmt.Printf("[phoenix-firewall] shims installed to %s\n", shimDir)
+	fmt.Println("[phoenix-firewall] restart your shell or run: export PATH=\"" + shimDir + ":$PATH\"")
+	return nil
 }
 
 func UninstallPATH() error {
-	return os.Remove(profileDFile)
+	shimDir := UserShimDir()
+	for _, pm := range PackageManagers {
+		_ = os.Remove(filepath.Join(shimDir, pm))
+	}
+	return nil
+}
+
+func containsShimEntry(content string) bool {
+	return len(content) > 0 && (containsStr(content, "phoenix-firewall") || containsStr(content, ".local/bin"))
+}
+
+func containsStr(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
 }

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -49,19 +50,30 @@ func runAgentBridge(ecosystem, pkg, command string) error {
 }
 
 func loadBridgeConfig() (*agentBridgeConfig, error) {
-	path := agentBridgeDiscoveryPath
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		return nil, fmt.Errorf("bridge discovery file not found: %s", path)
+	paths := discoveryPaths()
+	for _, path := range paths {
+		if _, err := os.Stat(path); err == nil {
+			data, err := os.ReadFile(path)
+			if err != nil {
+				continue
+			}
+			var cfg agentBridgeConfig
+			if err := json.Unmarshal(data, &cfg); err != nil {
+				continue
+			}
+			return &cfg, nil
+		}
 	}
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
+	return nil, fmt.Errorf("no bridge discovery file found (checked: %v)", paths)
+}
+
+func discoveryPaths() []string {
+	paths := []string{}
+	if home, err := os.UserHomeDir(); err == nil {
+		paths = append(paths, filepath.Join(home, ".config", "phoenix-firewall", "agent-bridge.json"))
 	}
-	var cfg agentBridgeConfig
-	if err := json.Unmarshal(data, &cfg); err != nil {
-		return nil, err
-	}
-	return &cfg, nil
+	paths = append(paths, agentBridgeDiscoveryPath)
+	return paths
 }
 
 func agentBridgeFallback(ecosystem, pkg, command string) error {
