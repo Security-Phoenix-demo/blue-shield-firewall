@@ -64,7 +64,14 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Sign Windows binary (Azure Trusted Signing)
-        if: startsWith(github.ref, 'refs/tags/v')
+        # Runs only when Azure Trusted Signing secrets are present. Skipped
+        # gracefully in forks and repos without the secret set; cosign keyless
+        # signing (above) is the baseline integrity guarantee.
+        if: |
+          startsWith(github.ref, 'refs/tags/v') &&
+          secrets.AZURE_TENANT_ID != ''
+        id: azure_sign
+        continue-on-error: true
         uses: azure/trusted-signing-action@v0.5.0
         with:
           azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
@@ -80,7 +87,11 @@ jobs:
           timestamp-digest: SHA256
 
       - name: Recompute checksums after signing
-        if: startsWith(github.ref, 'refs/tags/v')
+        # Only re-hash when Azure signing actually ran and modified the .exe.
+        # Skipping avoids invalidating the cosign signature on checksums.txt.
+        if: |
+          startsWith(github.ref, 'refs/tags/v') &&
+          steps.azure_sign.outcome == 'success'
         run: |
           cd dist
           sha256sum *.tar.gz *.zip > checksums.txt

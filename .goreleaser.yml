@@ -37,7 +37,8 @@ archives:
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     format_overrides:
       - goos: windows
-        format: zip
+        formats:
+          - zip
     files:
       - README.md
       - LICENSE
@@ -83,7 +84,7 @@ changelog:
 release:
   github:
     owner: Security-Phoenix-demo
-    name: phoenix-firewall
+    name: blue-shield-firewall
   name_template: "{{.ProjectName}} v{{.Version}}"
   header: |
     ## Phoenix Security Blue Shield - Firewall v{{.Version}}
