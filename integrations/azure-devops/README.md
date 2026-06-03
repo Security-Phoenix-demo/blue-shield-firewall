@@ -1,4 +1,4 @@
-# Phoenix Supply Chain Firewall -- Azure DevOps Integration
+# Phoenix Security Blue Shield - Firewall -- Azure DevOps Integration
 
 ## Quick Start
 

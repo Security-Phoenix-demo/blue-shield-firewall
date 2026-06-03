@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Phoenix Firewall — Lockfile Checker
+# Phoenix Security Blue Shield - Firewall — Lockfile Checker
 # Checks all packages in a lockfile against Phoenix firewall API
 # Usage: ./check-lockfile.sh [package-lock.json|yarn.lock|requirements.txt]
 
@@ -30,7 +30,7 @@ if [ -z "$LOCKFILE" ] || [ ! -f "$LOCKFILE" ]; then
     exit 1
 fi
 
-echo "Phoenix Firewall — checking $LOCKFILE"
+echo "Phoenix Security Blue Shield - Firewall — checking $LOCKFILE"
 
 # Extract packages based on lockfile type
 case "$LOCKFILE" in

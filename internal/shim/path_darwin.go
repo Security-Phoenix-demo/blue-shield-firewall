@@ -27,7 +27,7 @@ func InstallPATH() error {
 		return err
 	}
 	home, _ := os.UserHomeDir()
-	line := fmt.Sprintf("\n# Phoenix Supply Chain Firewall\nexport PATH=\"%s:$PATH\"\n", shimDir)
+	line := fmt.Sprintf("\n# Phoenix Security Blue Shield - Firewall\nexport PATH=\"%s:$PATH\"\n", shimDir)
 	for _, rc := range []string{".zprofile", ".profile", ".bash_profile"} {
 		rcPath := filepath.Join(home, rc)
 		if _, err := os.Stat(rcPath); os.IsNotExist(err) {

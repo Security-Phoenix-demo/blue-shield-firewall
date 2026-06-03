@@ -1,4 +1,4 @@
-// Strict Jenkins pipeline with Phoenix Firewall
+// Strict Jenkins pipeline with Phoenix Security Blue Shield - Firewall
 // Fail-closed: blocks build if API is unreachable
 // Quarantine: rejects packages published less than 72 hours ago
 pipeline {
@@ -47,7 +47,7 @@ pipeline {
                 if [ -f phoenix-firewall-report.json ]; then
                     BLOCKED=$(jq '[.[] | select(.action == "block")] | length' phoenix-firewall-report.json 2>/dev/null || echo 0)
                     TOTAL=$(jq '. | length' phoenix-firewall-report.json 2>/dev/null || echo 0)
-                    echo "Phoenix Firewall: ${TOTAL} evaluated, ${BLOCKED} blocked"
+                    echo "Phoenix Security Blue Shield - Firewall: ${TOTAL} evaluated, ${BLOCKED} blocked"
                     if [ "$BLOCKED" -gt 0 ]; then
                         jq '[.[] | select(.action == "block")] | .[] | "\(.package) \(.version) - \(.reason)"' phoenix-firewall-report.json
                     fi

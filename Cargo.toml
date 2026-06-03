@@ -3,7 +3,7 @@ name = "phoenix-firewall"
 version = "0.1.0"
 edition = "2021"
 license = "Apache-2.0"
-description = "Phoenix Supply Chain Firewall — MITM proxy for package manager security"
+description = "Phoenix Security Blue Shield - Firewall — MITM proxy for package manager security"
 repository = "https://github.com/phoenix-security/phoenix-firewall"
 
 [[bin]]

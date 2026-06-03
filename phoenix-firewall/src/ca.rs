@@ -16,7 +16,7 @@ impl EphemeralCA {
         params.is_ca = IsCa::Ca(rcgen::BasicConstraints::Unconstrained);
 
         let mut dn = DistinguishedName::new();
-        dn.push(DnType::CommonName, "Phoenix Firewall Ephemeral CA");
+        dn.push(DnType::CommonName, "Phoenix Security Blue Shield - Firewall Ephemeral CA");
         dn.push(DnType::OrganizationName, "Phoenix Security");
         params.distinguished_name = dn;
 

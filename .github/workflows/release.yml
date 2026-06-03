@@ -1,120 +1,139 @@
-name: Build Phoenix Firewall
+name: Release phoenix-firewall
+
+# Triggers
+#   - tag push v*    → full GitHub release (binaries + cosign + SLSA + SBOM)
+#   - manual dispatch → snapshot build (uploaded as workflow artifact only)
+#
+# Signed by:
+#   - Sigstore keyless (Fulcio + Rekor) via the goreleaser `signs:` block
+#   - SLSA Level 3 provenance via slsa-framework/slsa-github-generator
+#
+# Code signing for OS gatekeepers (Apple Developer ID, Windows Authenticode)
+# is deferred — see docs/INSTALL.md §8 for the procurement table.
 
 on:
   push:
-    paths:
-      - 'tools/phoenix-firewall/**'
     tags:
-      - 'firewall-v*'
-  pull_request:
-    paths:
-      - 'tools/phoenix-firewall/**'
+      - 'v*'
   workflow_dispatch:
+    inputs:
+      snapshot:
+        description: 'Snapshot build (no publish)'
+        type: boolean
+        default: true
 
-env:
-  CARGO_TERM_COLOR: always
+permissions:
+  contents: write   # goreleaser uploads release assets
+  packages: write
+  id-token: write   # OIDC token for Sigstore keyless + SLSA generator
 
 jobs:
-  build:
-    strategy:
-      matrix:
-        include:
-          - target: x86_64-unknown-linux-gnu
-            os: ubuntu-latest
-            name: linux-amd64
-          - target: aarch64-unknown-linux-gnu
-            os: ubuntu-latest
-            name: linux-arm64
-          - target: x86_64-apple-darwin
-            os: macos-latest
-            name: darwin-amd64
-          - target: aarch64-apple-darwin
-            os: macos-latest
-            name: darwin-arm64
-          - target: x86_64-pc-windows-msvc
-            os: windows-latest
-            name: windows-amd64
-
-    runs-on: ${{ matrix.os }}
-
+  goreleaser:
+    name: Build + cosign-sign + SBOM
+    runs-on: ubuntu-latest
+    outputs:
+      hashes: ${{ steps.hash.outputs.hashes }}
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+      - name: Checkout (with history for changelog)
+        uses: actions/checkout@v4
         with:
-          targets: ${{ matrix.target }}
+          fetch-depth: 0
 
-      - name: Install cross-compilation tools (Linux ARM64)
-        if: matrix.target == 'aarch64-unknown-linux-gnu'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y gcc-aarch64-linux-gnu
-
-      - name: Cache cargo
-        uses: actions/cache@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            tools/phoenix-firewall/target
-          key: ${{ runner.os }}-cargo-${{ matrix.target }}-${{ hashFiles('tools/phoenix-firewall/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-${{ matrix.target }}-
+          go-version: '1.23'
+          cache: true
 
-      - name: Build release binary
-        working-directory: tools/phoenix-firewall
-        run: cargo build --release --target ${{ matrix.target }}
+      - name: Install Syft (SBOM generator used by goreleaser)
+        uses: anchore/sbom-action/download-syft@v0
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+        with:
+          cosign-release: 'v2.4.1'
+
+      - name: Release (tag push) — build only, skip publish
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: '~> v2'
+          args: release --clean --skip=publish
         env:
-          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Rename binary
-        shell: bash
+      - name: Sign Windows binary (Azure Trusted Signing)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: azure/trusted-signing-action@v0.5.0
+        with:
+          azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+          endpoint: ${{ secrets.TRUSTED_SIGNING_ENDPOINT }}
+          trusted-signing-account-name: ${{ secrets.TRUSTED_SIGNING_ACCOUNT_NAME }}
+          certificate-profile-name: ${{ secrets.CERTIFICATE_PROFILE_NAME }}
+          files-folder: dist/
+          files-folder-filter: "*.exe"
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256
+
+      - name: Recompute checksums after signing
+        if: startsWith(github.ref, 'refs/tags/v')
         run: |
-          EXT=""
-          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then EXT=".exe"; fi
-          cp tools/phoenix-firewall/target/${{ matrix.target }}/release/phoenix-firewall${EXT} \
-             phoenix-firewall-${{ matrix.name }}${EXT}
+          cd dist
+          sha256sum *.tar.gz *.zip > checksums.txt
 
-      - name: Generate SHA256
-        shell: bash
+      - name: Publish release with signed artifacts
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: '~> v2'
+          args: release --skip=build --skip=sign
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Snapshot build (manual dispatch — dry run, signing skipped)
+        if: github.event_name == 'workflow_dispatch'
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: '~> v2'
+          args: release --snapshot --clean --skip=publish --skip=sign
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compute SLSA subject hashes
+        if: startsWith(github.ref, 'refs/tags/v')
+        id: hash
         run: |
-          if command -v sha256sum &> /dev/null; then
-            sha256sum phoenix-firewall-${{ matrix.name }}* > phoenix-firewall-${{ matrix.name }}.sha256
-          else
-            shasum -a 256 phoenix-firewall-${{ matrix.name }}* > phoenix-firewall-${{ matrix.name }}.sha256
-          fi
+          cd dist
+          # Hash every published archive (tarballs + zips). SLSA provenance
+          # binds these hashes to the build identity in step `provenance` below.
+          sha256sum *.tar.gz *.zip > artifact-hashes.txt
+          cat artifact-hashes.txt
+          echo "hashes=$(base64 -w0 artifact-hashes.txt)" >> "$GITHUB_OUTPUT"
 
-      - name: Upload artifact
+      - name: Upload snapshot artifacts
+        if: github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
         with:
-          name: phoenix-firewall-${{ matrix.name }}
-          path: |
-            phoenix-firewall-${{ matrix.name }}*
+          name: phoenix-firewall-snapshot
+          path: dist/*
+          retention-days: 7
 
-  release:
-    needs: build
-    if: startsWith(github.ref, 'refs/tags/firewall-v')
-    runs-on: ubuntu-latest
+  provenance:
+    name: SLSA L3 provenance
+    needs: goreleaser
+    if: startsWith(github.ref, 'refs/tags/v')
     permissions:
-      contents: write
-
-    steps:
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-
-      - name: Create checksums file
-        run: |
-          cd artifacts
-          cat */phoenix-firewall-*.sha256 > ../SHA256SUMS.txt
-          cd ..
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            artifacts/*/phoenix-firewall-*
-            SHA256SUMS.txt
-          generate_release_notes: true
+      actions: read     # required for the SLSA generator to introspect the run
+      id-token: write   # required to mint the OIDC token bound to this workflow
+      contents: write   # required to attach the attestation to the release
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.0.0
+    with:
+      base64-subjects: ${{ needs.goreleaser.outputs.hashes }}
+      upload-assets: true
+      provenance-name: "phoenix-firewall.intoto.jsonl"

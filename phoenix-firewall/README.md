@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="assets/phoenix-firewall-banner.jpeg" alt="Phoenix Supply Chain Firewall" width="600">
+  <img src="assets/phoenix-firewall-banner.jpeg" alt="Phoenix Security Blue Shield - Firewall" width="600">
 </p>
 
-<h1 align="center">Phoenix Supply Chain Firewall</h1>
+<h1 align="center">Phoenix Security Blue Shield - Firewall</h1>
 
 <p align="center">
   <strong>Detection without enforcement is noise.</strong><br>
@@ -20,12 +20,12 @@
 
 ## What is this?
 
-Phoenix Firewall is a **MITM proxy** that sits between your package manager (`npm`, `pip`, `yarn`, `pnpm`, `uv`, `poetry`) and the package registry. It evaluates every package install against Phoenix Security's [Malware Package Intelligence](https://cvedetails.io) — 52 heuristic rules, dual-LLM adversarial verification, and per-user policy rules — and **blocks malicious packages before they execute**.
+Phoenix Security Blue Shield - Firewall is a **MITM proxy** that sits between your package manager (`npm`, `pip`, `yarn`, `pnpm`, `uv`, `poetry`) and the package registry. It evaluates every package install against Phoenix Security's [Malware Package Intelligence](https://cvedetails.io) — 52 heuristic rules, dual-LLM adversarial verification, and per-user policy rules — and **blocks malicious packages before they execute**.
 
 ```
 Developer runs: npm ci
        ↓
-Phoenix Firewall intercepts registry requests
+Phoenix Security Blue Shield - Firewall intercepts registry requests
        ↓
 Checks each package against /api/v1/firewall/evaluate
        ↓
@@ -49,7 +49,7 @@ chmod +x /usr/local/bin/phoenix-firewall
 eval $(phoenix-firewall --api-key $PHOENIX_API_KEY --ci)
 
 # Now use package managers normally — they're protected
-npm ci          # ← intercepted by Phoenix Firewall
+npm ci          # ← intercepted by Phoenix Security Blue Shield - Firewall
 pip install -r requirements.txt  # ← intercepted
 ```
 
@@ -77,7 +77,7 @@ HTTPS_PROXY=https://localhost:8443 npm ci
 
 ### Intelligence-Driven Detection
 
-Phoenix Firewall doesn't just check a static blocklist. It evaluates packages against:
+Phoenix Security Blue Shield - Firewall doesn't just check a static blocklist. It evaluates packages against:
 
 - **52 heuristic rules** across 7 categories (code, network, persistence, reconnaissance, metadata, CI/CD, runtime)
 - **Dual-LLM analysis** — Gemini 2.5 Flash (analyst) + Claude Sonnet 4 (adversarial judge)
@@ -200,7 +200,7 @@ jobs:
             api.cvedetails.io:443
 
       - uses: actions/checkout@v4
-      - run: npm ci  # Protected by Phoenix Firewall
+      - run: npm ci  # Protected by Phoenix Security Blue Shield - Firewall
 ```
 
 ### GitLab CI
@@ -251,7 +251,7 @@ In `--fallback-feed` mode, the firewall blocks known-malicious packages from the
 ┌─────────────────────────────────────────────────────────┐
 │                    Developer Machine / CI Runner          │
 │                                                           │
-│  npm ci ──→ Phoenix Firewall (MITM Proxy) ──→ npm Registry
+│  npm ci ──→ Phoenix Security Blue Shield - Firewall (MITM Proxy) ──→ npm Registry
 │              │                                            │
 │              ├─ Intercept registry.npmjs.org requests     │
 │              ├─ Extract package name + version from URL   │

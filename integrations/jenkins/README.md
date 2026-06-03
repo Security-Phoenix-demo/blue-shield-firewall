@@ -1,4 +1,4 @@
-# Phoenix Supply Chain Firewall -- Jenkins Integration
+# Phoenix Security Blue Shield - Firewall -- Jenkins Integration
 
 ## Option 1: Shared Library (recommended)
 

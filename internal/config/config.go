@@ -30,6 +30,10 @@ type Config struct {
 	// GitLabHosts is a list of GitLab instance hostnames whose package registries
 	// should be intercepted (e.g. "gitlab.example.com"). gitlab.com is always included.
 	GitLabHosts []string
+	// EnforcePolicyFreshness, when true, blocks installs (fail-closed) once the
+	// downloaded firewall policy is staler than the hard threshold (R-FUNC-073).
+	// Default false: enabling it requires a reachable policy endpoint.
+	EnforcePolicyFreshness bool
 }
 
 // Load reads configuration from viper (flags + env vars) and returns a Config.
@@ -46,5 +50,7 @@ func Load() *Config {
 		ReportPath:      viper.GetString("report_path"),
 		ExtraRegistries: viper.GetStringSlice("extra_registries"),
 		GitLabHosts:     viper.GetStringSlice("gitlab_hosts"),
+
+		EnforcePolicyFreshness: viper.GetBool("enforce_policy_freshness"),
 	}
 }

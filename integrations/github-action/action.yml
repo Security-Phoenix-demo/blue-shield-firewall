@@ -1,4 +1,4 @@
-name: 'Phoenix Supply Chain Firewall'
+name: 'Phoenix Security Blue Shield - Firewall'
 description: 'Enforce Phoenix firewall rules on package installations in CI/CD'
 author: 'Phoenix Security'
 branding:
@@ -34,7 +34,7 @@ inputs:
     description: 'Allowed egress endpoints (newline-separated domain:port)'
     default: ''
   version:
-    description: 'Phoenix Firewall binary version'
+    description: 'Phoenix Security Blue Shield - Firewall binary version'
     default: 'latest'
 
 outputs:
@@ -67,7 +67,7 @@ runs:
           ${{ inputs.allowed-endpoints }}
 
     # Download binary
-    - name: Download Phoenix Firewall
+    - name: Download Phoenix Security Blue Shield - Firewall
       shell: bash
       run: |
         VERSION="${{ inputs.version }}"
@@ -85,7 +85,7 @@ runs:
         BINARY="phoenix-firewall-${OS}-${ARCH}"
         URL="https://github.com/phoenix-security/phoenix-firewall/releases/download/${VERSION}/${BINARY}"
 
-        echo "Downloading Phoenix Firewall ${VERSION} (${OS}-${ARCH})..."
+        echo "Downloading Phoenix Security Blue Shield - Firewall ${VERSION} (${OS}-${ARCH})..."
         curl -sfL -o /tmp/phoenix-firewall "$URL"
         chmod +x /tmp/phoenix-firewall
 
@@ -104,7 +104,7 @@ runs:
         sudo mv /tmp/phoenix-firewall /usr/local/bin/phoenix-firewall
 
     # Install with CI mode
-    - name: Configure Phoenix Firewall
+    - name: Configure Phoenix Security Blue Shield - Firewall
       shell: bash
       run: |
         eval $(phoenix-firewall \
@@ -127,7 +127,7 @@ runs:
           AUDITED=$(jq '[.[] | select(.action == "audit")] | length' "${{ inputs.report-path }}" 2>/dev/null || echo 0)
           TOTAL=$(jq '. | length' "${{ inputs.report-path }}" 2>/dev/null || echo 0)
 
-          echo "## :shield: Phoenix Firewall Report" >> $GITHUB_STEP_SUMMARY
+          echo "## :shield: Phoenix Security Blue Shield - Firewall Report" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Metric | Count |" >> $GITHUB_STEP_SUMMARY
           echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY

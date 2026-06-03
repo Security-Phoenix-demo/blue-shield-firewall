@@ -1,4 +1,4 @@
-# Phoenix Supply Chain Firewall -- GitHub Action
+# Phoenix Security Blue Shield - Firewall -- GitHub Action
 
 > Enforce Phoenix firewall rules on package installations in CI/CD workflows.
 
@@ -35,7 +35,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: '22', cache: 'npm' }
-      - run: npm ci  # Protected by Phoenix Firewall
+      - run: npm ci  # Protected by Phoenix Security Blue Shield - Firewall
 ```
 
 ## Inputs

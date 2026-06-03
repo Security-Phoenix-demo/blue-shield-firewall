@@ -1,4 +1,4 @@
-# Phoenix Supply Chain Firewall — GitLab CI Template
+# Phoenix Security Blue Shield - Firewall — GitLab CI Template
 # Usage: include this template in your .gitlab-ci.yml
 #
 # include:
@@ -33,7 +33,7 @@
         aarch64) ARCH="arm64" ;;
       esac
       BINARY="phoenix-firewall-linux-${ARCH}"
-      echo "Downloading Phoenix Firewall (${BINARY})..."
+      echo "Downloading Phoenix Security Blue Shield - Firewall (${BINARY})..."
       curl -sfL "${PHOENIX_BINARY_URL}/${BINARY}" -o /usr/local/bin/phoenix-firewall
       chmod +x /usr/local/bin/phoenix-firewall
     # Configure CI mode
@@ -65,7 +65,7 @@ phoenix-firewall-check:
   extends: .phoenix-firewall-base
   stage: test
   script:
-    - echo "Phoenix Firewall configured — package managers are now protected"
+    - echo "Phoenix Security Blue Shield - Firewall configured — package managers are now protected"
     - echo "Run your install commands in subsequent jobs or scripts"
   after_script:
     - |
@@ -76,7 +76,7 @@ phoenix-firewall-check:
         echo "PHOENIX_BLOCKED=$BLOCKED" >> phoenix-firewall-env.txt
         echo "PHOENIX_WARNED=$WARNED" >> phoenix-firewall-env.txt
         echo "PHOENIX_TOTAL=$TOTAL" >> phoenix-firewall-env.txt
-        echo "Phoenix Firewall: $TOTAL evaluated, $BLOCKED blocked, $WARNED warned"
+        echo "Phoenix Security Blue Shield - Firewall: $TOTAL evaluated, $BLOCKED blocked, $WARNED warned"
       fi
   rules:
     - changes:

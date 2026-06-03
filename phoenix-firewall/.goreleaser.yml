@@ -1,4 +1,4 @@
-# GoReleaser configuration for Phoenix Firewall
+# GoReleaser configuration for Phoenix Security Blue Shield - Firewall
 # Docs: https://goreleaser.com
 version: 2
 
@@ -51,6 +51,6 @@ release:
   github:
     owner: nicokoenig
     name: phoenix-firewall
-  name_template: "Phoenix Firewall v{{ .Version }}"
+  name_template: "Phoenix Security Blue Shield - Firewall v{{ .Version }}"
   draft: false
   prerelease: auto

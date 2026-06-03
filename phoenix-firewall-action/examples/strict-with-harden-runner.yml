@@ -12,7 +12,7 @@ jobs:
 
       - uses: actions/checkout@v4
 
-      - name: Phoenix Firewall Scan (Strict)
+      - name: Phoenix Security Blue Shield - Firewall Scan (Strict)
         uses: phoenix-security/firewall-action@v1
         id: firewall
         with:

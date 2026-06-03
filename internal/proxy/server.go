@@ -111,7 +111,7 @@ func (s *Server) StartWithContext(ctx context.Context) error {
 		_ = s.httpSrv.Shutdown(shutdownCtx)
 	}()
 
-	log.Printf("Phoenix Firewall proxy listening on %s", addr)
+	log.Printf("Phoenix Security Blue Shield - Firewall proxy listening on %s", addr)
 	if err := s.httpSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		return err
 	}

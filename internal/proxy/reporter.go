@@ -94,7 +94,9 @@ func (r *Reporter) Write(path string) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(path, data, 0644)
+	// 0600: the report contains the full dependency inventory and verdicts —
+	// keep it readable only by the user that ran the scan.
+	return os.WriteFile(path, data, 0600)
 }
 
 // HasBlocked returns true if any package was blocked.

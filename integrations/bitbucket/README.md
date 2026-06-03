@@ -1,4 +1,4 @@
-# Phoenix Supply Chain Firewall -- Bitbucket Pipelines Integration
+# Phoenix Security Blue Shield - Firewall -- Bitbucket Pipelines Integration
 
 ## Quick Start
 

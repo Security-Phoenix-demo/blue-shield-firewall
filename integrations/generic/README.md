@@ -1,4 +1,4 @@
-# Phoenix Firewall — Generic CI Integration
+# Phoenix Security Blue Shield - Firewall — Generic CI Integration
 
 For any CI system not explicitly supported (CircleCI, Drone, Buildkite, etc.).
 
@@ -38,7 +38,7 @@ jobs:
     steps:
       - checkout
       - run:
-          name: Install Phoenix Firewall
+          name: Install Phoenix Security Blue Shield - Firewall
           command: curl -sfL https://raw.githubusercontent.com/Security-Phoenix-demo/phoenix-firewall/main/integrations/generic/install.sh | bash
       - run: npm ci  # Protected
 ```
@@ -62,7 +62,7 @@ steps:
 
 ```yaml
 steps:
-  - label: ":shield: Phoenix Firewall"
+  - label: ":shield: Phoenix Security Blue Shield - Firewall"
     command: curl -sfL https://raw.githubusercontent.com/Security-Phoenix-demo/phoenix-firewall/main/integrations/generic/install.sh | bash
   - label: ":npm: Install"
     command: npm ci

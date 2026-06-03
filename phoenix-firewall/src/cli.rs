@@ -3,7 +3,7 @@
 use clap::Parser;
 use std::path::PathBuf;
 
-/// Phoenix Supply Chain Firewall — package manager security proxy
+/// Phoenix Security Blue Shield - Firewall — package manager security proxy
 #[derive(Parser, Debug)]
 #[command(name = "phoenix-firewall", version, about)]
 pub struct Cli {

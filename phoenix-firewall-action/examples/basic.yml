@@ -7,7 +7,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Phoenix Firewall Scan
+      - name: Phoenix Security Blue Shield - Firewall Scan
         uses: phoenix-security/firewall-action@v1
         id: firewall
         with:

@@ -1,4 +1,4 @@
-//! Phoenix Firewall Evaluate API client with LRU cache
+//! Phoenix Security Blue Shield - Firewall Evaluate API client with LRU cache
 
 use lru::LruCache;
 use serde::{Deserialize, Serialize};

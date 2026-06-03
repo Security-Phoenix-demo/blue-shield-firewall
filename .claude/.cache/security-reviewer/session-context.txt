@@ -1,0 +1,37 @@
+## SECURITY CONTEXT (injected by .claude/hooks/session-start.sh)
+
+Project root: `/Users/francescocipollone/Documents/GitHub/vulnerability-db/PUB-firewall`
+Detected ecosystems: go rust
+Generated at: 2026-05-11T18:00:58Z
+
+### Manifests present
+
+- `go.mod`
+- `go.sum`
+- `Cargo.toml`
+
+### Lockfile sanity
+
+- ✅ go: go.sum present
+- ⚠️ rust: Cargo.lock missing
+
+### Secrets hygiene (.gitignore)
+
+- ⚠️ `.env` not in .gitignore
+- ⚠️ `.env.local` not in .gitignore
+- ⚠️ `*.pem` not in .gitignore
+- ⚠️ `*.key` not in .gitignore
+
+### Dependency audit (best-effort, fast)
+
+No dependency-audit tool installed. Recommended (pick one):
+- `osv-scanner` (multi-ecosystem, single binary): https://github.com/google/osv-scanner
+- ecosystem-native: `npm audit`, `pip-audit`, `govulncheck`, `cargo audit`, `bundle audit`, `dotnet list package --vulnerable`
+
+### Guidance for agents in this session
+
+- The `security-reviewer` skill at `.claude/skills/security-reviewer/SKILL.md` defines the 8-point review and per-language references.
+- Trust this context block over re-discovery for ecosystem and lockfile state.
+- The `pre-bash-package-guard.sh` hook will block typosquatted, brand-new, or known-malicious package installs — do not try to bypass it; surface the issue to the user instead.
+- The `post-edit-quickscan.sh` hook will scan files written by Edit/Write/MultiEdit and may emit findings to consume.
+

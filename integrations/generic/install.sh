@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Phoenix Supply Chain Firewall — Universal Installer
+# Phoenix Security Blue Shield - Firewall — Universal Installer
 # Usage: curl -sfL https://raw.githubusercontent.com/Security-Phoenix-demo/phoenix-firewall/main/integrations/generic/install.sh | bash
 #
 # Environment variables:
@@ -18,7 +18,7 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m'
 
-echo -e "${GREEN}Phoenix Supply Chain Firewall — Installer${NC}"
+echo -e "${GREEN}Phoenix Security Blue Shield - Firewall — Installer${NC}"
 
 # Detect platform
 OS=$(uname -s | tr '[:upper:]' '[:lower:]')
@@ -111,4 +111,4 @@ else
     echo -e "  Usage: phoenix-firewall --api-key YOUR_KEY --ci"
 fi
 
-echo -e "\n${GREEN}Phoenix Firewall ready${NC}"
+echo -e "\n${GREEN}Phoenix Security Blue Shield - Firewall ready${NC}"

@@ -31,7 +31,7 @@ pub fn install_path_shims(cli: &Cli) -> anyhow::Result<()> {
         let shim_path = shim_dir.join(name);
         let shim_content = format!(
             r#"#!/bin/bash
-# Phoenix Firewall shim for {original}
+# Phoenix Security Blue Shield - Firewall shim for {original}
 # Wraps {original} with firewall proxy
 export HTTPS_PROXY="https://127.0.0.1:{port}"
 export HTTP_PROXY="http://127.0.0.1:{port}"
@@ -42,7 +42,7 @@ export SSL_CERT_FILE="$(dirname "$0")/../phoenix-firewall-ca.pem"
 # Find the real binary (skip this shim in PATH)
 REAL=$(which -a {original} 2>/dev/null | grep -v phoenix-firewall-shims | head -1)
 if [ -z "$REAL" ]; then
-    echo "Error: {original} not found in PATH (outside Phoenix Firewall shims)" >&2
+    echo "Error: {original} not found in PATH (outside Phoenix Security Blue Shield - Firewall shims)" >&2
     exit 1
 fi
 

@@ -1,4 +1,4 @@
-# Phoenix Firewall with GitLab Package Registry interception
+# Phoenix Security Blue Shield - Firewall with GitLab Package Registry interception
 #
 # This example protects packages installed from both public registries AND
 # your self-hosted GitLab package registry. The proxy intercepts npm/pip/maven
@@ -25,7 +25,7 @@ phoenix-firewall-check:
   extends: .phoenix-firewall-base
   stage: security
   script:
-    - echo "Phoenix Firewall active — intercepting public + GitLab registry downloads"
+    - echo "Phoenix Security Blue Shield - Firewall active — intercepting public + GitLab registry downloads"
     - npm ci          # Packages from both npmjs.org and gitlab.yourcompany.com are checked
     - pip install -r requirements.txt
 

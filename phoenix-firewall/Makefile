@@ -1,4 +1,4 @@
-# Phoenix Firewall — Build System
+# Phoenix Security Blue Shield - Firewall — Build System
 # Cross-platform build matrix with SHA256 checksums
 
 BINARY      := phoenix-firewall

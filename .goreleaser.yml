@@ -1,4 +1,4 @@
-# Phoenix Supply Chain Firewall — GoReleaser configuration
+# Phoenix Security Blue Shield - Firewall — GoReleaser configuration
 # Userland release: unsigned binaries + checksums.
 # Signing deferred: Apple Developer Program + Windows EV cert procurement pending.
 version: 2
@@ -46,6 +46,24 @@ checksum:
   name_template: "checksums.txt"
   algorithm: sha256
 
+# Cosign keyless signing — anchors checksums.txt in the Sigstore transparency
+# log (Rekor) via a short-lived Fulcio cert tied to this workflow's OIDC
+# identity. Free, no secrets, no procurement. Does NOT satisfy macOS Gatekeeper
+# or Windows SmartScreen — those need an OS-trusted CA chain (see docs/INSTALL.md §8).
+signs:
+  - cmd: cosign
+    signature: "${artifact}.sig"
+    certificate: "${artifact}.pem"
+    args:
+      - sign-blob
+      - "--oidc-issuer=https://token.actions.githubusercontent.com"
+      - "--output-signature=${signature}"
+      - "--output-certificate=${certificate}"
+      - "--yes"
+      - "${artifact}"
+    artifacts: checksum
+    output: true
+
 sboms:
   - artifacts: archive
     documents:
@@ -68,7 +86,7 @@ release:
     name: phoenix-firewall
   name_template: "{{.ProjectName}} v{{.Version}}"
   header: |
-    ## Phoenix Supply Chain Firewall v{{.Version}}
+    ## Phoenix Security Blue Shield - Firewall v{{.Version}}
 
     ### Installation (userland — no root, no MDM)
 

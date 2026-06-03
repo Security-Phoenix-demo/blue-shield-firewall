@@ -39,6 +39,7 @@ func init() {
 	rootCmd.PersistentFlags().String("report-path", "", "Path to write JSON scan report")
 	rootCmd.PersistentFlags().StringSlice("gitlab-hosts", nil, "GitLab instance hostnames to intercept (e.g. gitlab.example.com)")
 	rootCmd.PersistentFlags().StringSlice("extra-registries", nil, "Additional registries as ecosystem:host (e.g. npm:packages.example.com)")
+	rootCmd.PersistentFlags().Bool("enforce-policy-freshness", false, "Fail closed (block) when the firewall policy is staler than 24h (requires a reachable policy endpoint)")
 
 	_ = viper.BindPFlag("api_url", rootCmd.PersistentFlags().Lookup("api-url"))
 	_ = viper.BindPFlag("api_key", rootCmd.PersistentFlags().Lookup("api-key"))
@@ -51,6 +52,7 @@ func init() {
 	_ = viper.BindPFlag("report_path", rootCmd.PersistentFlags().Lookup("report-path"))
 	_ = viper.BindPFlag("gitlab_hosts", rootCmd.PersistentFlags().Lookup("gitlab-hosts"))
 	_ = viper.BindPFlag("extra_registries", rootCmd.PersistentFlags().Lookup("extra-registries"))
+	_ = viper.BindPFlag("enforce_policy_freshness", rootCmd.PersistentFlags().Lookup("enforce-policy-freshness"))
 }
 
 func initConfig() {

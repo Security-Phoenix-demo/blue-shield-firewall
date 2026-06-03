@@ -10,6 +10,7 @@ import (
 	"syscall"
 
 	"github.com/Security-Phoenix-demo/phoenix-firewall/internal/config"
+	"github.com/Security-Phoenix-demo/phoenix-firewall/internal/policy"
 	"github.com/Security-Phoenix-demo/phoenix-firewall/internal/proxy"
 	"github.com/spf13/cobra"
 )
@@ -19,6 +20,7 @@ var proxyCmd = &cobra.Command{
 	Short: "Start the MITM proxy server",
 	Long:  `Start an HTTP proxy that intercepts package manager requests and checks them against the Phoenix firewall API.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		warnIfAPIKeyFlag(cmd)
 		cfg := config.Load()
 
 		// Resolve CA directory
@@ -71,20 +73,21 @@ var proxyCmd = &cobra.Command{
 			fmt.Println("CI mode: will exit with code 1 if any packages blocked")
 		}
 
+		// Optionally enforce policy freshness (fail-closed when policy is stale).
+		var policySyncer *policy.Syncer
+		if cfg.EnforcePolicyFreshness {
+			policySyncer = policy.NewSyncer(cfg.APIUrl, cfg.APIKey)
+			policySyncer.Start()
+			defer policySyncer.Stop()
+			fmt.Println("Policy freshness enforcement: ON (blocks installs when policy stale > 24h)")
+		}
+
 		srv := proxy.NewServer(cfg)
 		srv.SetCA(ca)
 
 		// Configure the handler with new features after server creation
 		srv.ConfigureHandler(func(h *proxy.RequestHandler) {
-			if cfg.StrictMode {
-				h.SetStrictMode(true)
-			}
-			if reporter != nil {
-				h.SetReporter(reporter)
-			}
-			if fallbackFeed != nil {
-				h.SetFallbackFeed(fallbackFeed)
-			}
+			applyHandlerConfig(h, cfg, reporter, fallbackFeed, policySyncer)
 		})
 
 		// Set up graceful shutdown via signal

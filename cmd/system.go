@@ -10,6 +10,7 @@ import (
 	"syscall"
 
 	"github.com/Security-Phoenix-demo/phoenix-firewall/internal/config"
+	"github.com/Security-Phoenix-demo/phoenix-firewall/internal/policy"
 	"github.com/Security-Phoenix-demo/phoenix-firewall/internal/proxy"
 	"github.com/Security-Phoenix-demo/phoenix-firewall/internal/service"
 	"github.com/spf13/cobra"
@@ -104,8 +105,23 @@ func runSystemMode() error {
 			cfg.APIUrl = u
 		}
 	}
+	// The service unit runs `phoenix-firewall system` with no flags, so these
+	// security settings are reachable only via env or agent.toml. Back-fill from
+	// agent.toml when not already set by flag/env (which take precedence).
+	if !cfg.StrictMode {
+		cfg.StrictMode = localViper.GetBool("strict_mode")
+	}
+	if !cfg.EnforcePolicyFreshness {
+		cfg.EnforcePolicyFreshness = localViper.GetBool("enforce_policy_freshness")
+	}
+	if cfg.FallbackFeed == "" {
+		cfg.FallbackFeed = localViper.GetString("fallback_feed")
+	}
 
 	log.Printf("[phoenix-firewall] starting userland proxy on 127.0.0.1:%d", cfg.Port)
+	if cfg.StrictMode {
+		log.Println("[phoenix-firewall] strict mode: warn treated as block; fail-closed on API error")
+	}
 
 	// Ensure the MITM CA certificate exists in the user config directory
 	ca, err := proxy.EnsureCA(cfgDir)
@@ -114,8 +130,34 @@ func runSystemMode() error {
 	}
 	log.Printf("[phoenix-firewall] CA ready at %s/phoenix-ca.crt", cfgDir)
 
+	// Load fallback feed if configured (offline checking parity with `proxy`).
+	var fallbackFeed *proxy.FallbackFeed
+	if cfg.FallbackFeed != "" {
+		feed, feedErr := proxy.LoadFallbackFeed(cfg.FallbackFeed)
+		if feedErr != nil {
+			return fmt.Errorf("load fallback feed: %w", feedErr)
+		}
+		log.Printf("[phoenix-firewall] loaded fallback feed with %d entries", feed.Len())
+		fallbackFeed = feed
+	}
+
+	// Optionally enforce policy freshness (fail-closed when policy is stale).
+	var policySyncer *policy.Syncer
+	if cfg.EnforcePolicyFreshness {
+		policySyncer = policy.NewSyncer(cfg.APIUrl, cfg.APIKey)
+		policySyncer.Start()
+		defer policySyncer.Stop()
+		log.Println("[phoenix-firewall] policy freshness enforcement: ON (blocks installs when policy stale > 24h)")
+	}
+
 	srv := proxy.NewServer(cfg)
 	srv.SetCA(ca)
+
+	// Wire strict-mode / fallback / policy gate onto the handler. Shared with the
+	// `proxy` command so endpoint (service) mode enforces identically.
+	srv.ConfigureHandler(func(h *proxy.RequestHandler) {
+		applyHandlerConfig(h, cfg, nil, fallbackFeed, policySyncer)
+	})
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

@@ -1,4 +1,4 @@
-//! Phoenix Supply Chain Firewall — MITM proxy binary
+//! Phoenix Security Blue Shield - Firewall — MITM proxy binary
 //!
 //! Intercepts package manager traffic (npm, pip, yarn, pnpm) and enforces
 //! Phoenix firewall rules at install time.
@@ -25,7 +25,7 @@ async fn main() -> anyhow::Result<()> {
 
     let args = cli::Cli::parse();
 
-    tracing::info!("Phoenix Firewall v{}", env!("CARGO_PKG_VERSION"));
+    tracing::info!("Phoenix Security Blue Shield - Firewall v{}", env!("CARGO_PKG_VERSION"));
     tracing::info!(
         "Mode: {}",
         if args.ci { "CI (PATH shims)" } else { "Proxy" }

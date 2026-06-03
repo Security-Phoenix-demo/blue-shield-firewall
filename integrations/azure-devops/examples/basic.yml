@@ -1,4 +1,4 @@
-# Basic Azure DevOps pipeline with Phoenix Firewall
+# Basic Azure DevOps pipeline with Phoenix Security Blue Shield - Firewall
 trigger:
   - main
 

@@ -6,9 +6,9 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/elazarl/goproxy"
 	"github.com/Security-Phoenix-demo/phoenix-firewall/internal/client"
 	"github.com/Security-Phoenix-demo/phoenix-firewall/internal/registry"
+	"github.com/elazarl/goproxy"
 )
 
 // BlockResponse is the JSON body returned when a package is blocked.
@@ -17,6 +17,12 @@ type BlockResponse struct {
 	Reason  string `json:"reason"`
 	Package string `json:"package"`
 	Action  string `json:"action"`
+}
+
+// StalenessChecker reports whether the active firewall policy is too old to trust.
+// Implemented by policy.Syncer.
+type StalenessChecker interface {
+	IsHardStale() bool
 }
 
 // RequestHandler intercepts proxy requests and checks packages against the firewall API.
@@ -28,6 +34,7 @@ type RequestHandler struct {
 	strictMode   bool
 	reporter     *Reporter
 	fallbackFeed *FallbackFeed
+	policyGate   StalenessChecker
 }
 
 // NewRequestHandler creates a handler with the given matcher and firewall client.
@@ -59,6 +66,12 @@ func (h *RequestHandler) SetFallbackFeed(feed *FallbackFeed) {
 	h.fallbackFeed = feed
 }
 
+// SetPolicyGate attaches a staleness checker. When set and the policy is hard
+// stale, registry requests are blocked (fail-closed) before any verdict lookup.
+func (h *RequestHandler) SetPolicyGate(c StalenessChecker) {
+	h.policyGate = c
+}
+
 // HandleRequest inspects an HTTP request. If it matches a registry URL, the package
 // is checked against the firewall API. Blocked packages receive a 403 response.
 func (h *RequestHandler) HandleRequest(req *http.Request, ctx *goproxy.ProxyCtx) (*http.Request, *http.Response) {
@@ -83,6 +96,15 @@ func (h *RequestHandler) HandleRequest(req *http.Request, ctx *goproxy.ProxyCtx)
 
 	if h.verbose {
 		log.Printf("[handler] detected %s package: %s@%s", ref.Ecosystem, ref.Name, ref.Version)
+	}
+
+	// Fail closed if policy freshness is enforced and the policy is hard stale.
+	if h.policyGate != nil && h.policyGate.IsHardStale() {
+		pkgLabel := fmt.Sprintf("%s/%s@%s", ref.Ecosystem, ref.Name, ref.Version)
+		reason := "fail-closed: firewall policy is stale (exceeded freshness window)"
+		log.Printf("[BLOCKED] %s — %s", pkgLabel, reason)
+		h.recordResult(ref, StrictBlock(reason))
+		return req, blockResponse(req, pkgLabel, reason)
 	}
 
 	// Check cache first
@@ -125,7 +147,16 @@ func (h *RequestHandler) HandleRequest(req *http.Request, ctx *goproxy.ProxyCtx)
 		result, apiErr = h.client.Check(ref.Ecosystem, ref.Name, ref.Version)
 		if apiErr != nil {
 			log.Printf("[handler] firewall API error for %s/%s@%s: %v", ref.Ecosystem, ref.Name, ref.Version, apiErr)
-			// Fail open by default — allow the request
+			pkgLabel := fmt.Sprintf("%s/%s@%s", ref.Ecosystem, ref.Name, ref.Version)
+			if h.strictMode {
+				// Fail closed in strict mode: block when the verdict cannot be obtained.
+				reason := fmt.Sprintf("fail-closed: firewall API unreachable (strict mode): %v", apiErr)
+				log.Printf("[BLOCKED] %s — %s", pkgLabel, reason)
+				h.recordResult(ref, StrictBlock(reason))
+				// Deliberately NOT cached: a transient outage must not pin a block for the cache TTL.
+				return req, blockResponse(req, pkgLabel, reason)
+			}
+			// Fail open by default — allow the request (transient, not cached).
 			return req, nil
 		}
 	}
@@ -162,6 +193,18 @@ func (h *RequestHandler) HandleRequest(req *http.Request, ctx *goproxy.ProxyCtx)
 // HandleResponse passes responses through unchanged.
 func (h *RequestHandler) HandleResponse(resp *http.Response, ctx *goproxy.ProxyCtx) *http.Response {
 	return resp
+}
+
+// StrictBlock builds a fail-closed CheckResult used when strict mode is enabled
+// and the firewall verdict cannot be obtained (e.g. the API is unreachable).
+// Shared by the proxy handler and the one-shot scanner so both fail closed identically.
+func StrictBlock(reason string) *client.CheckResult {
+	return &client.CheckResult{
+		Allowed: false,
+		Verdict: "blocked",
+		Reason:  reason,
+		Action:  "block",
+	}
 }
 
 // applyStrictMode returns a modified result where "warn" is treated as "block" if strict mode is on.

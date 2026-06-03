@@ -35,6 +35,10 @@ const defaultInterval = 5 * time.Minute
 const defaultStaleThreshold = 24 * time.Hour
 const forcedSyncGrace = 23 * time.Hour
 
+// httpClient carries an explicit timeout so a black-holed network can't hang
+// the policy-sync goroutine indefinitely.
+var httpClient = &http.Client{Timeout: 10 * time.Second}
+
 func NewSyncer(apiURL, apiKey string) *Syncer {
 	return &Syncer{
 		apiURL:         apiURL,
@@ -101,12 +105,19 @@ func (s *Syncer) fetch() error {
 		return err
 	}
 	req.Header.Set("x-api-key", s.apiKey)
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("policy fetch: %w", err)
 	}
 	defer resp.Body.Close()
-	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		// Do not overwrite a good cached policy with an error page.
+		return fmt.Errorf("policy fetch: API returned %d", resp.StatusCode)
+	}
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 16<<20))
+	if err != nil {
+		return fmt.Errorf("policy read: %w", err)
+	}
 	var p Policy
 	if err := json.Unmarshal(body, &p); err != nil {
 		return fmt.Errorf("policy parse: %w", err)

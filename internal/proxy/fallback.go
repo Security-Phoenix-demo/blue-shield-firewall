@@ -4,11 +4,15 @@ package proxy
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
 	"github.com/Security-Phoenix-demo/phoenix-firewall/internal/client"
 )
+
+// maxFallbackFeedBytes caps the size of a fallback feed file read into memory.
+const maxFallbackFeedBytes = 32 << 20 // 32 MiB
 
 // FallbackEntry represents a single entry in the fallback feed JSON file.
 type FallbackEntry struct {
@@ -28,14 +32,25 @@ type FallbackFeed struct {
 //
 //	[{"package_name": "evil-pkg", "version": "1.0.0", "ecosystem": "npm", "action": "block"}]
 func LoadFallbackFeed(path string) (*FallbackFeed, error) {
-	data, err := os.ReadFile(path)
+	f, err := os.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("read fallback feed: %w", err)
+	}
+	defer f.Close()
+
+	// Bound the read so an oversized file cannot exhaust memory.
+	data, err := io.ReadAll(io.LimitReader(f, maxFallbackFeedBytes+1))
+	if err != nil {
+		return nil, fmt.Errorf("read fallback feed: %w", err)
+	}
+	if int64(len(data)) > maxFallbackFeedBytes {
+		return nil, fmt.Errorf("fallback feed too large (exceeded %d bytes)", maxFallbackFeedBytes)
 	}
 
 	var entries []FallbackEntry
 	if err := json.Unmarshal(data, &entries); err != nil {
-		return nil, fmt.Errorf("parse fallback feed: %w", err)
+		// Do not wrap the parser error: it can echo a slice of file contents.
+		return nil, fmt.Errorf("parse fallback feed: invalid JSON")
 	}
 
 	feed := &FallbackFeed{

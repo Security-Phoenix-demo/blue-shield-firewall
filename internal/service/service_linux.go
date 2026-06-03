@@ -25,7 +25,7 @@ func binaryPath() string {
 }
 
 const unitTemplate = `[Unit]
-Description=Phoenix Supply Chain Firewall (userland)
+Description=Phoenix Security Blue Shield - Firewall (userland)
 After=network.target
 
 [Service]

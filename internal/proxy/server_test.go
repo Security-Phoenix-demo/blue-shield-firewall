@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -804,6 +805,22 @@ func TestFallbackFeed_CaseInsensitive(t *testing.T) {
 	}
 	if result.Action != "block" {
 		t.Errorf("action: got %s, want block", result.Action)
+	}
+}
+
+// A parse failure must not echo the file's contents back in the error (info leak).
+func TestFallbackFeed_ParseErrorDoesNotLeakContents(t *testing.T) {
+	secret := "TOP-SECRET-NOT-JSON-9f3a"
+	feedPath := filepath.Join(t.TempDir(), "feed.json")
+	if err := os.WriteFile(feedPath, []byte(secret), 0600); err != nil {
+		t.Fatalf("write feed: %v", err)
+	}
+	_, err := proxy.LoadFallbackFeed(feedPath)
+	if err == nil {
+		t.Fatal("expected parse error for non-JSON feed")
+	}
+	if strings.Contains(err.Error(), secret) {
+		t.Errorf("error leaked file contents: %v", err)
 	}
 }
 

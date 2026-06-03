@@ -33,6 +33,17 @@ func Compute(binaryPath, caPEMPath, agentTOMLPath string) (*FileHashes, error) {
 	return &FileHashes{BinarySHA256: b, CAPEMSHA256: c, AgentTOMLSHA256: a}, nil
 }
 
+// HashFileBestEffort returns the hex SHA-256 of the file at path, or "" if the
+// file cannot be read. Use when a missing/unreadable file should not be fatal
+// (e.g. integrity fields in a telemetry heartbeat).
+func HashFileBestEffort(path string) string {
+	h, err := hashFile(path)
+	if err != nil {
+		return ""
+	}
+	return h
+}
+
 func hashFile(path string) (string, error) {
 	f, err := os.Open(path)
 	if err != nil {

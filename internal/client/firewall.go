@@ -26,6 +26,11 @@ type CheckResult struct {
 	Confidence float64 `json:"confidence"`
 }
 
+// maxRespBytes caps the firewall API response body to defend against a
+// malicious or compromised endpoint returning an unbounded response (memory
+// exhaustion). Declared as a var so tests can shrink it.
+var maxRespBytes int64 = 16 << 20 // 16 MiB
+
 // Client communicates with the Phoenix firewall API.
 type Client struct {
 	baseURL    string
@@ -76,6 +81,57 @@ type evaluateResult struct {
 	PsOssScore *int    `json:"ps_oss_score,omitempty"`
 }
 
+// bypassResponse is the firewall API's answer to a bypass-authorization check.
+type bypassResponse struct {
+	Authorized bool   `json:"authorized"`
+	Reason     string `json:"reason"`
+}
+
+// VerifyBypass asks the firewall API whether the given bypass token authorizes
+// skipping interception for the current API credentials. It is the server-side
+// anchor for the shim bypass: the agent holds no signing key, so authorization
+// cannot be forged locally.
+//
+// It FAILS CLOSED — any transport error, non-200 status, or unparseable body
+// returns (false, ...) so the caller routes the install through the firewall.
+func (c *Client) VerifyBypass(token string) (bool, string, error) {
+	reqBody, err := json.Marshal(map[string]string{"token": token})
+	if err != nil {
+		return false, "", fmt.Errorf("marshal request: %w", err)
+	}
+
+	url := fmt.Sprintf("%s/api/v1/firewall/bypass/verify", c.baseURL)
+	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(reqBody))
+	if err != nil {
+		return false, "", fmt.Errorf("create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	if c.apiKey != "" {
+		// X-API-Key is the canonical self-service auth header (see `rules` cmd).
+		req.Header.Set("X-API-Key", c.apiKey)
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return false, "", fmt.Errorf("bypass verify request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 64<<10))
+	if err != nil {
+		return false, "", fmt.Errorf("read response: %w", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return false, "", fmt.Errorf("bypass verify returned %d", resp.StatusCode)
+	}
+
+	var br bypassResponse
+	if err := json.Unmarshal(body, &br); err != nil {
+		return false, "", fmt.Errorf("parse response: %w", err)
+	}
+	return br.Authorized, br.Reason, nil
+}
+
 // Check evaluates a package against the Phoenix firewall API.
 func (c *Client) Check(ecosystem, name, version string) (*CheckResult, error) {
 	reqBody := evaluateRequest{
@@ -109,13 +165,22 @@ func (c *Client) Check(ecosystem, name, version string) (*CheckResult, error) {
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	// Bound the read so a hostile endpoint cannot exhaust memory.
+	body, err := io.ReadAll(io.LimitReader(resp.Body, maxRespBytes))
 	if err != nil {
 		return nil, fmt.Errorf("read response: %w", err)
 	}
+	if int64(len(body)) >= maxRespBytes {
+		return nil, fmt.Errorf("firewall API response too large (exceeded %d bytes)", maxRespBytes)
+	}
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("firewall API returned %d: %s", resp.StatusCode, string(body))
+		// Truncate any error body so a hostile/oversized error page is not echoed in full.
+		snippet := string(body)
+		if len(snippet) > 256 {
+			snippet = snippet[:256] + "..."
+		}
+		return nil, fmt.Errorf("firewall API returned %d: %s", resp.StatusCode, snippet)
 	}
 
 	var evalResp evaluateResponse

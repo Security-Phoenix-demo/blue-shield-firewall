@@ -1,4 +1,4 @@
-# Phoenix Supply Chain Firewall -- Bitbucket Pipe Definition
+# Phoenix Security Blue Shield - Firewall -- Bitbucket Pipe Definition
 # Usage in bitbucket-pipelines.yml:
 #
 #   - step:
@@ -18,7 +18,7 @@
 #         - chmod +x /usr/local/bin/phoenix-firewall
 #         - eval $(phoenix-firewall --api-key $PHOENIX_API_KEY --ci)
 
-name: Phoenix Supply Chain Firewall
+name: Phoenix Security Blue Shield - Firewall
 image: alpine:3.19
 
 variables:
@@ -73,11 +73,11 @@ script:
       --fail-on "${FAIL_ON}" \
       --report-path "${REPORT_PATH}" \
       $EXTRA)
-  - echo "Phoenix Firewall configured -- package managers are now protected"
+  - echo "Phoenix Security Blue Shield - Firewall configured -- package managers are now protected"
   - |
     if [ -f "${REPORT_PATH}" ]; then
       BLOCKED=$(jq '[.[] | select(.action == "block")] | length' "${REPORT_PATH}" 2>/dev/null || echo 0)
       WARNED=$(jq '[.[] | select(.action == "warn")] | length' "${REPORT_PATH}" 2>/dev/null || echo 0)
       TOTAL=$(jq '. | length' "${REPORT_PATH}" 2>/dev/null || echo 0)
-      echo "Phoenix Firewall: ${TOTAL} evaluated, ${BLOCKED} blocked, ${WARNED} warned"
+      echo "Phoenix Security Blue Shield - Firewall: ${TOTAL} evaluated, ${BLOCKED} blocked, ${WARNED} warned"
     fi

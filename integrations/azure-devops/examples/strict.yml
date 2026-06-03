@@ -1,4 +1,4 @@
-# Strict Azure DevOps pipeline with Phoenix Firewall
+# Strict Azure DevOps pipeline with Phoenix Security Blue Shield - Firewall
 # Fail-closed + 72-hour quarantine
 trigger:
   - main

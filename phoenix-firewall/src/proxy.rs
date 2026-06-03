@@ -3,7 +3,7 @@
 //! Listens on 127.0.0.1:{port} for HTTP requests. Intercepts traffic
 //! destined for known package registries (npm, pypi, yarn), extracts
 //! package name + version from URL patterns, and evaluates them via
-//! the Phoenix Firewall API. Non-registry traffic is tunnelled through.
+//! the Phoenix Security Blue Shield - Firewall API. Non-registry traffic is tunnelled through.
 //!
 //! Actions:
 //!   block           → HTTP 403 with reason body
@@ -247,7 +247,7 @@ pub async fn start(config: ProxyConfig) -> anyhow::Result<()> {
     let state = Arc::new(ProxyState::new(config));
 
     let listener = TcpListener::bind(addr).await?;
-    tracing::info!("Phoenix Firewall listening on http://{}", addr);
+    tracing::info!("Phoenix Security Blue Shield - Firewall listening on http://{}", addr);
     tracing::info!("Set HTTP_PROXY=http://127.0.0.1:{} to route traffic", port);
 
     loop {
@@ -401,7 +401,7 @@ async fn handle_request(
                     let body = format!(
                         concat!(
                             "\n",
-                            "  Phoenix Firewall: BLOCKED\n",
+                            "  Phoenix Security Blue Shield - Firewall: BLOCKED\n",
                             "  Package: {}@{}\n",
                             "  Ecosystem: {}\n",
                             "  Rule: {}\n",
@@ -433,7 +433,7 @@ async fn handle_request(
                     let body = format!(
                         concat!(
                             "\n",
-                            "  Phoenix Firewall: APPROVAL REQUIRED\n",
+                            "  Phoenix Security Blue Shield - Firewall: APPROVAL REQUIRED\n",
                             "  Package: {}@{}\n",
                             "  Ecosystem: {}\n",
                             "\n",
@@ -464,7 +464,7 @@ async fn handle_request(
                         let body = format!(
                             concat!(
                                 "\n",
-                                "  Phoenix Firewall: WARNING (fail-on={})\n",
+                                "  Phoenix Security Blue Shield - Firewall: WARNING (fail-on={})\n",
                                 "  Package: {}@{}\n",
                                 "  Rule: {}\n",
                                 "\n",
@@ -597,7 +597,7 @@ async fn forward_request(
                 .status(StatusCode::BAD_GATEWAY)
                 .header("Content-Type", "text/plain")
                 .body(Full::new(Bytes::from(format!(
-                    "Phoenix Firewall: upstream error — {}\n",
+                    "Phoenix Security Blue Shield - Firewall: upstream error — {}\n",
                     e
                 ))))
                 .unwrap())

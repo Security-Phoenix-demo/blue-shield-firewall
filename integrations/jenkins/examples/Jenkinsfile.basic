@@ -1,4 +1,4 @@
-// Basic Jenkins pipeline with Phoenix Firewall
+// Basic Jenkins pipeline with Phoenix Security Blue Shield - Firewall
 pipeline {
     agent any
 

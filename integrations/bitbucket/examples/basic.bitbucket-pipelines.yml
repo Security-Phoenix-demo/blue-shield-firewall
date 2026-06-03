@@ -1,10 +1,10 @@
-# Basic Bitbucket pipeline with Phoenix Firewall
+# Basic Bitbucket pipeline with Phoenix Security Blue Shield - Firewall
 image: node:22-alpine
 
 pipelines:
   default:
     - step:
-        name: 'Phoenix Firewall'
+        name: 'Phoenix Security Blue Shield - Firewall'
         image: alpine:3.19
         script:
           - apk add --no-cache curl bash

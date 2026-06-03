@@ -1,6 +1,6 @@
 #!/usr/bin/env groovy
 /**
- * Phoenix Supply Chain Firewall -- Jenkins Shared Library
+ * Phoenix Security Blue Shield - Firewall -- Jenkins Shared Library
  *
  * Usage in Jenkinsfile:
  *   @Library('phoenix-firewall') _
@@ -21,10 +21,10 @@ def call(Map config = [:]) {
     def binaryUrl   = config.binaryUrl ?: 'https://github.com/Security-Phoenix-demo/phoenix-firewall/releases/latest/download'
 
     if (!apiKey) {
-        error "Phoenix Firewall: PHOENIX_API_KEY is required. Set it in Jenkins credentials."
+        error "Phoenix Security Blue Shield - Firewall: PHOENIX_API_KEY is required. Set it in Jenkins credentials."
     }
 
-    echo "Phoenix Supply Chain Firewall"
+    echo "Phoenix Security Blue Shield - Firewall"
     echo "   Mode: ${mode} | Fail on: ${failOn} | Strict: ${strict}"
 
     // Download binary
@@ -36,7 +36,7 @@ def call(Map config = [:]) {
         esac
         OS=\$(uname -s | tr '[:upper:]' '[:lower:]')
         BINARY="phoenix-firewall-\${OS}-\${ARCH}"
-        echo "Downloading Phoenix Firewall (\${BINARY})..."
+        echo "Downloading Phoenix Security Blue Shield - Firewall (\${BINARY})..."
         curl -sfL "${binaryUrl}/\${BINARY}" -o /tmp/phoenix-firewall
         chmod +x /tmp/phoenix-firewall
     """
@@ -57,7 +57,7 @@ def call(Map config = [:]) {
             ${extraFlags})
     """
 
-    echo "Phoenix Firewall configured -- package managers are now protected"
+    echo "Phoenix Security Blue Shield - Firewall configured -- package managers are now protected"
 }
 
 // Generate report summary (call in post block)
@@ -76,7 +76,7 @@ def report(String reportPath = 'phoenix-firewall-report.json') {
             returnStdout: true
         ).trim()
 
-        echo "Phoenix Firewall Report: ${total} evaluated, ${blocked} blocked, ${warned} warned"
+        echo "Phoenix Security Blue Shield - Firewall Report: ${total} evaluated, ${blocked} blocked, ${warned} warned"
 
         if (blocked.toInteger() > 0) {
             def details = sh(

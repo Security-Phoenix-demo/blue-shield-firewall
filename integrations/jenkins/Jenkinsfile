@@ -1,4 +1,4 @@
-// Phoenix Supply Chain Firewall -- Jenkinsfile Example
+// Phoenix Security Blue Shield - Firewall -- Jenkinsfile Example
 // Copy this into your project or use as a shared library reference
 
 pipeline {
@@ -9,10 +9,10 @@ pipeline {
     }
 
     stages {
-        stage('Phoenix Firewall Setup') {
+        stage('Phoenix Security Blue Shield - Firewall Setup') {
             steps {
                 sh '''
-                    # Download Phoenix Firewall
+                    # Download Phoenix Security Blue Shield - Firewall
                     ARCH=$(uname -m)
                     case "$ARCH" in
                         x86_64)  ARCH="amd64" ;;
@@ -30,14 +30,14 @@ pipeline {
                         --mode enforce \
                         --fail-on block \
                         --report-path phoenix-firewall-report.json)
-                    echo "Phoenix Firewall configured"
+                    echo "Phoenix Security Blue Shield - Firewall configured"
                 '''
             }
         }
 
         stage('Install Dependencies') {
             steps {
-                sh 'npm ci'  // Protected by Phoenix Firewall
+                sh 'npm ci'  // Protected by Phoenix Security Blue Shield - Firewall
             }
         }
 
@@ -61,7 +61,7 @@ pipeline {
                     BLOCKED=$(jq '[.[] | select(.action == "block")] | length' phoenix-firewall-report.json 2>/dev/null || echo 0)
                     WARNED=$(jq '[.[] | select(.action == "warn")] | length' phoenix-firewall-report.json 2>/dev/null || echo 0)
                     TOTAL=$(jq '. | length' phoenix-firewall-report.json 2>/dev/null || echo 0)
-                    echo "Phoenix Firewall: ${TOTAL} evaluated, ${BLOCKED} blocked, ${WARNED} warned"
+                    echo "Phoenix Security Blue Shield - Firewall: ${TOTAL} evaluated, ${BLOCKED} blocked, ${WARNED} warned"
                 fi
             '''
             archiveArtifacts artifacts: 'phoenix-firewall-report.json', allowEmptyArchive: true

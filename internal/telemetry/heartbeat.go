@@ -3,12 +3,17 @@ package telemetry
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
+
+	"github.com/Security-Phoenix-demo/phoenix-firewall/internal/integrity"
 )
+
+// httpClient carries an explicit timeout so a black-holed network can't hang
+// the heartbeat goroutine indefinitely.
+var httpClient = &http.Client{Timeout: 10 * time.Second}
 
 // HeartbeatSender sends periodic heartbeat payloads to /api/v1/firewall/agent/heartbeat.
 type HeartbeatSender struct {
@@ -56,9 +61,9 @@ func (h *HeartbeatSender) send() error {
 		"ts":            time.Now().UTC().Format(time.RFC3339),
 		"proxy_health":  "running",
 		"integrity": map[string]string{
-			"phoenix_firewall_bin_sha256": fileHash("/usr/local/bin/phoenix-firewall"),
-			"ca_pem_sha256":              fileHash("/etc/phoenix-firewall/ca.pem"),
-			"agent_toml_sha256":          fileHash("/etc/phoenix-firewall/agent.toml"),
+			"phoenix_firewall_bin_sha256": integrity.HashFileBestEffort("/usr/local/bin/phoenix-firewall"),
+			"ca_pem_sha256":               integrity.HashFileBestEffort("/etc/phoenix-firewall/ca.pem"),
+			"agent_toml_sha256":           integrity.HashFileBestEffort("/etc/phoenix-firewall/agent.toml"),
 		},
 		"stats": map[string]int{
 			"evaluations_5m": 0,
@@ -74,16 +79,10 @@ func (h *HeartbeatSender) send() error {
 	}
 	req.Header.Set("x-api-key", h.apiKey)
 	req.Header.Set("Content-Type", "application/json")
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("heartbeat send: %w", err)
 	}
 	defer resp.Body.Close()
 	return nil
-}
-
-func fileHash(path string) string {
-	data := []byte(path) // stub: real implementation reads the file
-	sum := sha256.Sum256(data)
-	return fmt.Sprintf("%x", sum)
 }

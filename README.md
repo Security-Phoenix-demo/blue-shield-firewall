@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="assets/phoenix-firewall-banner.jpeg" alt="Phoenix Supply Chain Firewall" width="600">
+  <img src="assets/phoenix-firewall-banner.jpeg" alt="Phoenix Security Blue Shield - Firewall" width="600">
 </p>
 
-<h1 align="center">Phoenix Supply Chain Firewall</h1>
+<h1 align="center">Phoenix Security Blue Shield - Firewall</h1>
 
 <p align="center">
   <strong>Detection without enforcement is noise.</strong><br>
@@ -10,8 +10,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Security-Phoenix-demo/phoenix-firewall/actions"><img src="https://img.shields.io/github/actions/workflow/status/Security-Phoenix-demo/phoenix-firewall/release.yml?label=build" alt="Build Status"></a>
-  <a href="https://github.com/Security-Phoenix-demo/phoenix-firewall/releases"><img src="https://img.shields.io/github/v/release/Security-Phoenix-demo/phoenix-firewall" alt="Release"></a>
+  <a href="https://github.com/Security-Phoenix-demo/blue-shield-firewall/actions"><img src="https://img.shields.io/github/actions/workflow/status/Security-Phoenix-demo/blue-shield-firewall/release.yml?label=build" alt="Build Status"></a>
+  <a href="https://github.com/Security-Phoenix-demo/blue-shield-firewall/releases"><img src="https://img.shields.io/github/v/release/Security-Phoenix-demo/blue-shield-firewall" alt="Release"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-blue.svg" alt="License"></a>
   <a href="https://phxintel.security"><img src="https://img.shields.io/badge/powered%20by-Phoenix%20Security-orange" alt="Phoenix Security"></a>
 </p>
@@ -24,7 +24,7 @@ This binary ships two independent interception modes. They are **complementary l
 
 | | Proxy mode (v2) | Endpoint / shim mode (v4) |
 |---|---|---|
-| **How it works** | MITM proxy on port :8443; `HTTPS_PROXY` redirects traffic | PATH shims intercept the command before the process starts |
+| **How it works** | MITM proxy on port :8080 by default; `HTTPS_PROXY` redirects traffic | PATH shims intercept the command before the process starts |
 | **Where it runs** | CI/CD runner (ephemeral) or dev machine | Developer workstation (persistent, user-level) |
 | **Setup** | Set `HTTPS_PROXY`, add CA cert | `phoenix-firewall init` once |
 | **Root / admin required?** | No (ephemeral CA in `~/.phoenix-firewall/`) | No (userland) |
@@ -43,12 +43,110 @@ When both fire for the same install, the agent-bridge deduplication (R-FUNC-091)
 
 ---
 
+## Quick start
+
+### macOS / Linux — one-line install
+
+```bash
+curl -sSfL https://raw.githubusercontent.com/Security-Phoenix-demo/blue-shield-firewall/main/scripts/install.sh | bash
+```
+
+### Windows — PowerShell
+
+```powershell
+irm https://raw.githubusercontent.com/Security-Phoenix-demo/blue-shield-firewall/main/scripts/install.ps1 | iex
+```
+
+### Proxy mode (CI/CD or dev machine, one-shot)
+
+```bash
+# Start proxy + inject env vars into current shell
+eval $(phoenix-firewall proxy --api-key $PHOENIX_API_KEY --ci)
+
+# Use package managers as normal — they're protected
+npm ci
+pip install -r requirements.txt
+```
+
+### Endpoint / shim mode (developer workstation, persistent)
+
+```bash
+# One-time setup — installs shims to ~/.local/bin, writes config
+phoenix-firewall init
+
+# Activate with your API key (get one at phxintel.security)
+phoenix-firewall enroll --api-key $PHOENIX_API_KEY
+
+# Restart your shell — every npm/pip/cargo call is now evaluated
+```
+
+### GitHub Action (CI/CD)
+
+```yaml
+- uses: Security-Phoenix-demo/firewall-action@v1
+  with:
+    api-key: ${{ secrets.PHOENIX_API_KEY }}
+    mode: enforce
+    fail-on: block
+```
+
+---
+
+## Installation
+
+### Download pre-built binary (v0.2.0)
+
+| Platform | Asset |
+|----------|-------|
+| macOS (Apple Silicon) | `phoenix-firewall_0.2.0_darwin_arm64.tar.gz` |
+| macOS (Intel) | `phoenix-firewall_0.2.0_darwin_amd64.tar.gz` |
+| Linux x86_64 | `phoenix-firewall_0.2.0_linux_amd64.tar.gz` |
+| Linux ARM64 | `phoenix-firewall_0.2.0_linux_arm64.tar.gz` |
+| Windows x86_64 | `phoenix-firewall_0.2.0_windows_amd64.zip` |
+
+Download from **[github.com/Security-Phoenix-demo/blue-shield-firewall/releases/tag/v0.2.0](https://github.com/Security-Phoenix-demo/blue-shield-firewall/releases/tag/v0.2.0)**
+
+```bash
+# macOS / Linux — auto-detect arch
+VER=0.2.0
+OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+ARCH=$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')
+curl -sSfL "https://github.com/Security-Phoenix-demo/blue-shield-firewall/releases/download/v${VER}/phoenix-firewall_${VER}_${OS}_${ARCH}.tar.gz" \
+  | tar -xz
+mv phoenix-firewall ~/.local/bin/
+chmod +x ~/.local/bin/phoenix-firewall
+phoenix-firewall version
+```
+
+```powershell
+# Windows PowerShell
+$ver = "0.2.0"
+$url = "https://github.com/Security-Phoenix-demo/blue-shield-firewall/releases/download/v$ver/phoenix-firewall_${ver}_windows_amd64.zip"
+Invoke-WebRequest $url -OutFile phoenix-firewall.zip
+Expand-Archive phoenix-firewall.zip -DestinationPath "$env:LOCALAPPDATA\Programs\phoenix-firewall" -Force
+Unblock-File "$env:LOCALAPPDATA\Programs\phoenix-firewall\phoenix-firewall.exe"
+```
+
+### Build from source
+
+```bash
+git clone https://github.com/Security-Phoenix-demo/blue-shield-firewall
+cd blue-shield-firewall
+go build -o phoenix-firewall .
+```
+
+Requires Go 1.23+.
+
+> **Note on code signing**: binaries are unsigned in this release. See [docs/INSTALL.md §5](docs/INSTALL.md#5-running-an-unsigned-binary) for the per-OS workaround (two commands on macOS, one click on Windows).
+
+---
+
 ## Proxy mode — how it works
 
 ```
 Developer runs: npm ci
        │
-       ▼ HTTPS_PROXY=https://localhost:8443
+       ▼ HTTPS_PROXY=http://127.0.0.1:8080
        npm → CONNECT registry.npmjs.org:443 → phoenix-firewall proxy
                 │
                 ├─ goproxy MITM intercepts TLS tunnel
@@ -66,35 +164,7 @@ Developer runs: npm ci
                 └─ block → returns HTTP 403 to npm; npm fails with exit 1
 ```
 
-### What the MITM proxy does (step by step)
-
-1. **CA generation** — on first run, `proxy.EnsureCA()` generates an ephemeral root CA in `~/.phoenix-firewall/ca/` (Ed25519, 24h validity). The CA is regenerated each session by default.
-
-2. **Proxy startup** — listens on `:8443` (configurable via `--port`). In CI mode (`--ci`), prints `export HTTPS_PROXY=... NODE_EXTRA_CA_CERTS=...` for the shell to `eval`.
-
-3. **CONNECT interception** — when a package manager opens a TLS tunnel (HTTPS), goproxy intercepts the `CONNECT` handshake and uses the ephemeral CA to generate a fresh leaf certificate for that host, signed on-the-fly.
-
-4. **URL matching** — `internal/registry/` contains per-ecosystem matchers. Each matcher knows the URL pattern for that registry:
-   - npm/yarn/pnpm: `registry.npmjs.org/@scope/pkg/-/pkg-ver.tgz`
-   - PyPI: `pypi.org/simple/pkg/`, `files.pythonhosted.org/packages/.../file.tar.gz`
-   - Cargo: `crates.io/api/v1/crates/pkg/ver/download`
-   - Maven: `repo1.maven.org/maven2/group/artifact/ver/file.jar`
-   - RubyGems: `rubygems.org/gems/pkg-ver.gem`
-   - GitLab Package Registry: configurable host + path
-
-5. **Evaluation** — extracted `(ecosystem, package, version)` is sent to `POST /api/v1/firewall/evaluate`. The backend runs the 30-condition rules engine (your configured rules) plus MPI intelligence (52 heuristic signals, dual-LLM verification).
-
-6. **Enforcement** — verdict determines response:
-   - `allow` → proxy forwards the original request to the real registry
-   - `warn` → forwards, writes warning to stderr
-   - `block` → returns HTTP 403 with JSON `{"blocked":true,"reason":"..."}` — the package manager never fetches the tarball
-   - `require_approval` → 403, exit code 78, Slack notification dispatched
-
-7. **Caching** — results are held in a per-session LRU cache (10,000 entries). Transitive dependencies that repeat a package skip the API call.
-
-8. **Fail mode** — if the API is unreachable, default is fail-open (install proceeds). Add `--strict` for fail-closed.
-
-### Proxy mode: registry coverage
+### Registry coverage
 
 | Ecosystem | Registry host | Trigger URL pattern |
 |-----------|--------------|---------------------|
@@ -115,109 +185,19 @@ Developer runs: npm install lodash
        │
        ▼ PATH: ~/.local/bin/npm  (shim, installed by phoenix-firewall init)
        shim script:
-         ├─ reads PHOENIX_BYPASS_TOKEN (if set, skip evaluation)
+         ├─ if PHOENIX_FIREWALL_BYPASS_TOKEN set: runs `phoenix-firewall bypass verify`
+         │     (server-authenticated, fails closed — an unauthorized token does
+         │      NOT skip the firewall; it routes through evaluation as normal)
          ├─ calls: phoenix-firewall agent-bridge --ecosystem npm --command "npm install lodash"
          │             │
          │             ├─ reads ~/.config/phoenix-firewall/agent-bridge.json
-         │             ├─ (future: routes to local worker over Unix socket)
          │             └─ fallback: POST /api/v1/firewall/agent/evaluate → Phoenix backend
          │
-         ├─ verdict = allow/warn → exec real npm (shimDir/npm.real or PATH remainder)
+         ├─ verdict = allow/warn → exec real npm
          └─ verdict = block → exit 2; real npm never runs
 ```
 
-Shims are plain bash scripts (`.cmd` on Windows) installed in `~/.local/bin/`. Because `~/.local/bin` is prepended to PATH by `phoenix-firewall init`, every shell (terminal, IDE, CI job running as your user) uses the shim automatically.
-
-The shim calls `phoenix-firewall agent-bridge`, which:
-1. Looks for `~/.config/phoenix-firewall/agent-bridge.json` (userland) or `/etc/phoenix-firewall/agent-bridge.json` (system)
-2. If a local worker is running (v4 full mode): routes over the Unix socket — zero extra network latency
-3. If no local worker: falls back to `POST /api/v1/firewall/agent/evaluate` directly
-
-### Shim mode: package manager coverage (13 PMs)
-
-npm, yarn, pnpm, pip, pip3, uv, poetry, cargo, gem, bundler, go, dotnet, conda
-
----
-
-## Quick start
-
-### Proxy mode (CI/CD or dev machine, one-shot)
-
-```bash
-# 1. Download binary
-curl -sSfL "https://github.com/Security-Phoenix-demo/phoenix-firewall/releases/latest/download/phoenix-firewall_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz" \
-  | tar -xz && mv phoenix-firewall ~/.local/bin/
-
-# 2. Start proxy + inject env vars into current shell
-eval $(phoenix-firewall proxy --api-key $PHOENIX_API_KEY --ci)
-
-# 3. Use package managers as normal — they're protected
-npm ci
-pip install -r requirements.txt
-```
-
-### Endpoint / shim mode (developer workstation, persistent)
-
-```bash
-# 1. Download binary (same as above)
-
-# 2. One-time setup — installs shims to ~/.local/bin, writes config
-phoenix-firewall init
-
-# 3. Activate with your API key (get one at phxintel.security)
-phoenix-firewall enroll --api-key $PHOENIX_API_KEY
-
-# 4. Restart your shell (or source ~/.zprofile / ~/.profile)
-# Done — every npm/pip/cargo call is now evaluated
-```
-
-### GitHub Action (CI/CD)
-
-```yaml
-- uses: Security-Phoenix-demo/firewall-action@v1
-  with:
-    api-key: ${{ secrets.PHOENIX_API_KEY }}
-    mode: enforce
-    fail-on: block
-```
-
----
-
-## Installation
-
-### Download pre-built binary
-
-```bash
-# Detect OS + arch automatically
-OS=$(uname -s | tr '[:upper:]' '[:lower:]')
-ARCH=$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')
-
-curl -sSfL "https://github.com/Security-Phoenix-demo/phoenix-firewall/releases/latest/download/phoenix-firewall_${OS}_${ARCH}.tar.gz" \
-  | tar -xz
-mv phoenix-firewall ~/.local/bin/
-chmod +x ~/.local/bin/phoenix-firewall
-
-# Verify
-phoenix-firewall version
-```
-
-### Windows
-
-```powershell
-# Download and extract zip
-$url = "https://github.com/Security-Phoenix-demo/phoenix-firewall/releases/latest/download/phoenix-firewall_windows_amd64.zip"
-Invoke-WebRequest $url -OutFile phoenix-firewall.zip
-Expand-Archive phoenix-firewall.zip -DestinationPath "$env:APPDATA\PhoenixFirewall"
-# Add to PATH via System Properties > Environment Variables
-```
-
-### Build from source
-
-```bash
-git clone https://github.com/Security-Phoenix-demo/phoenix-firewall
-cd phoenix-firewall
-go build -o phoenix-firewall .
-```
+**Package manager coverage (13 PMs):** npm, yarn, pnpm, pip, pip3, uv, poetry, cargo, gem, bundler, go, dotnet, conda
 
 ---
 
@@ -231,9 +211,9 @@ phoenix-firewall init [--api-key <key>] [--api-url <url>]
 
 Creates:
 - `~/.config/phoenix-firewall/agent.toml` — agent configuration (mode 0600)
-- `~/.config/phoenix-firewall/agent-bridge.json` — local worker discovery file for coding agent hooks
+- `~/.config/phoenix-firewall/agent-bridge.json` — local worker discovery file
 - Shims in `~/.local/bin/` for all 13 package managers
-- PATH entry appended to `~/.zprofile`, `~/.profile`, `~/.bash_profile` (whichever exist)
+- PATH entry in `~/.zprofile`, `~/.profile`, `~/.bash_profile`
 
 ### Step 2 — enroll
 
@@ -241,12 +221,9 @@ Creates:
 phoenix-firewall enroll --api-key <your-phoenix-api-key>
 ```
 
-Writes (or updates) `api_key` in `~/.config/phoenix-firewall/agent.toml`. Supports optional `--tenant-id` and `--device-id` for enterprise multi-tenant setups.
-
 ### Step 3 — install as background service (optional)
 
 ```bash
-# Installs and starts the agent as a user-level background service
 phoenix-firewall system install
 phoenix-firewall system start
 phoenix-firewall system status
@@ -258,98 +235,54 @@ phoenix-firewall system status
 | Linux | systemd --user (no sudo) | `~/.config/systemd/user/phoenix-firewall.service` |
 | Windows | Task Scheduler /RL LIMITED (no admin) | `PhoenixFirewall\Agent` scheduled task |
 
-### Step 4 — verify
-
-```bash
-# Shim should intercept — you'll see a phoenix-firewall evaluation log
-npm install lodash
-```
-
-### Configuration file: `~/.config/phoenix-firewall/agent.toml`
+### Configuration: `~/.config/phoenix-firewall/agent.toml`
 
 ```toml
 api_url = "https://api.phxintel.security"
 api_key = "phx_fwagent_..."
 
 [policy]
-poll_interval_s = 300       # how often to sync policy from backend
-stale_threshold_s = 86400   # 24h — after this, fail per fail_mode.mode
+poll_interval_s = 300
+stale_threshold_s = 86400
 
 [telemetry]
-heartbeat_interval_s = 300  # how often to send device health beacon
-depth = "metadata"          # "metadata" | "debug"
+heartbeat_interval_s = 300
+depth = "metadata"
 
 [fail_mode]
-# "open"  = allow installs when backend unreachable (default for userland)
-# "closed" = block installs when backend unreachable (enterprise)
-mode = "open"
+mode = "open"   # "open" = fail-open (default) | "closed" = fail-closed
 ```
-
-### Bypass tokens (for IT-approved one-off installs)
-
-When a package is blocked but an engineer has a legitimate reason, an admin can issue a single-use bypass token:
-
-```bash
-# Admin issues a token (via Phoenix dashboard or API)
-# Engineer sets the token in their env for that one install:
-PHOENIX_BYPASS_TOKEN=<jwt> npm install some-internal-package
-# Token is consumed on first use (JTI replay prevention)
-```
-
-Bypass tokens are signed with an ED25519 keypair generated on first run at `~/.config/phoenix-firewall/bypass-signing-key.pem`.
 
 ---
 
 ## Proxy mode: detailed setup
 
-### Direct proxy (dev machine)
+### Direct proxy
 
 ```bash
-# Start proxy — generates CA, starts listener on :8443
 phoenix-firewall proxy --api-key $PHOENIX_API_KEY
 
-# In another terminal, configure your package manager:
-export HTTPS_PROXY=https://localhost:8443
-export NODE_EXTRA_CA_CERTS=~/.phoenix-firewall/ca/phoenix-ca.crt  # npm/node
-export SSL_CERT_FILE=~/.phoenix-firewall/ca/phoenix-ca.crt        # Python
-npm ci   # intercepted
+# In another terminal:
+export HTTPS_PROXY=http://127.0.0.1:8080
+export NODE_EXTRA_CA_CERTS=~/.phoenix-firewall/ca/phoenix-ca.crt
+export SSL_CERT_FILE=~/.phoenix-firewall/ca/phoenix-ca.crt
+npm ci
 ```
 
-### CI mode (one-line setup)
+### CI mode (one-line)
 
 ```bash
-# Starts proxy + emits eval-able env vars for the current shell
 eval $(phoenix-firewall proxy --api-key $PHOENIX_API_KEY --ci)
-
-# All subsequent package manager calls are intercepted
 npm ci
 pip install -r requirements.txt
 cargo build
 ```
 
-### With auto trust injection (requires sudo once)
-
-```bash
-# Injects CA into system trust store permanently
-phoenix-firewall proxy --api-key $PHOENIX_API_KEY --trust
-# Now all package managers trust the CA without NODE_EXTRA_CA_CERTS
-```
-
 ### Offline / air-gapped mode
 
 ```bash
-# Download feed snapshot
 curl -sf https://api.phxintel.security/api/v1/firewall/feed/npm.json -o npm-feed.json
-
-# Use local feed as fallback when API unreachable
 phoenix-firewall proxy --api-key $PHOENIX_API_KEY --fallback-feed npm-feed.json --ci
-```
-
-### Strict mode (fail-closed)
-
-```bash
-# Block all installs if Phoenix API is unreachable
-phoenix-firewall proxy --api-key $PHOENIX_API_KEY --strict --ci
 ```
 
 ---
@@ -365,7 +298,7 @@ Subcommands:
   proxy         Start the MITM proxy server (CI/CD or dev machine)
   scan          One-shot lockfile scan
   system        Manage the background service (install/start/stop/status)
-  agent-bridge  Route a package evaluation to local worker or backend (used by shims)
+  agent-bridge  Route a package evaluation to local worker or backend
   version       Print version information
 
 Global flags:
@@ -374,65 +307,28 @@ Global flags:
   --verbose           Verbose logging
 
 proxy flags:
-  --port int          Proxy listen port (default: 8443)
+  --port int          Proxy listen port (default: 8080)
   --ca-dir string     CA directory (default: ~/.phoenix-firewall/ca/)
   --trust             Inject CA into system trust store (requires sudo)
   --ci                CI mode: print eval-able env var exports
   --strict            Fail-closed when API unreachable
   --fallback-feed     Path to local JSON feed for offline operation
   --report-path       Write JSON scan report to path
-
-init flags:
-  --api-key string    Pre-populate API key in agent.toml
-  --api-url string    Phoenix API URL
-
-enroll flags:
-  --api-key string    Your Phoenix API key (required)
-  --api-url string    Phoenix API URL
-  --tenant-id string  Tenant ID (optional, auto-detected from key)
-  --device-id string  Device ID (optional, auto-generated)
-
-system subcommands:
-  install     Install user-level OS service
-  uninstall   Remove OS service
-  start       Start the service
-  stop        Stop the service
-  status      Show service status
-
-agent-bridge flags:
-  --ecosystem string  Package ecosystem (npm, pip, cargo…)
-  --package string    Package name
-  --command string    Full install command string
 ```
 
 ---
 
 ## Intelligence: what the backend checks
 
-Every evaluation calls the Phoenix backend which runs:
-
 | Signal source | What it checks |
 |---|---|
 | MPI heuristic engine | 52 rules across 7 categories: code execution, network callbacks, persistence, reconnaissance, metadata anomalies, CI/CD abuse, runtime behaviour |
-| MPI dual-LLM verification | Gemini 2.5 Flash (analyst) + Claude Sonnet 4 (adversarial judge) — each votes independently |
-| 15+ ecosystem feeds | OSSF, OSM, SafeChain — covering npm, PyPI, Maven, NuGet, Cargo, Go, RubyGems |
-| Your firewall rules | Up to 30 conditions: package pattern, CVSS, EPSS, MPI confidence, threat type, package age, license, maintainer age, KEV, ransomware associations |
-| Vulnerability data | CVSS, EPSS, CISA KEV, PoC availability, patch lag |
+| MPI dual-LLM verification | Gemini 2.5 Flash (analyst) + Claude Sonnet 4 (adversarial judge) |
+| 15+ ecosystem feeds | OSSF, OSM, SafeChain — npm, PyPI, Maven, NuGet, Cargo, Go, RubyGems |
+| Your firewall rules | Up to 30 conditions: package pattern, MPI confidence, threat type, package age, license, maintainer age, KEV status |
+| Vulnerability data | CVSS, EPSS, CISA KEV, PoC availability |
 
 **Action precedence when multiple rules match**: block > require_approval > warn > audit > allow
-
----
-
-## Security properties
-
-| Property | Proxy mode | Endpoint mode |
-|---|---|---|
-| Ephemeral CA | Yes — 24h, `~/.phoenix-firewall/ca/` | N/A |
-| Root / admin required | No | No |
-| Fail mode | Fail-open (configurable) | Fail-open (configurable) |
-| API key storage | Env var / CLI flag | `~/.config/phoenix-firewall/agent.toml` (0600) |
-| Bypass mechanism | `PHOENIX_STRICT=false` + API unreachable | `PHOENIX_BYPASS_TOKEN=<jwt>` (single-use JWT) |
-| Signed binary | Checksums published per release (code signing pending Apple Dev cert) | Same |
 
 ---
 
@@ -449,16 +345,21 @@ Every evaluation calls the Phoenix backend which runs:
 
 ---
 
-## Relationship to PUB-firewall-agents-hub
+## Verify integrity
 
-[PUB-firewall-agents-hub](../PUB-firewall-agents-hub/) provides the **intent-time interception layer** for coding agents (Claude Code, Cursor, Copilot, Gemini Antigravity, and 4 others). It wraps the `phoenix_check_package` MCP tool.
+Every release ships SHA-256 checksums and a Sigstore keyless signature.
 
-This repo provides the **OS-level backstop**: shims catch any install that bypasses or predates the agent hook, whether triggered from a terminal, a script, or a CI job.
+```bash
+# Verify checksum
+sha256sum -c checksums.txt
 
-The two layers are designed to coexist. When both fire for the same package:
-- The agent hook fires at *intent time* (when the LLM proposes the install command)
-- The shim fires at *execution time* (when the shell actually runs it)
-- The `agent-bridge` discovery file (`agent-bridge.json`) deduplicates verdicts so the same install isn't double-counted in telemetry
+# Verify Sigstore signature
+cosign verify-blob checksums.txt \
+  --certificate-identity-regexp 'https://github.com/Security-Phoenix-demo/blue-shield-firewall/.*' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  --signature checksums.txt.sig \
+  --certificate checksums.txt.pem
+```
 
 ---
 
@@ -469,5 +370,5 @@ Apache License 2.0 — Copyright 2026 Phoenix Security Ltd.
 ---
 
 <p align="center">
-  <a href="https://phoenix.security">Phoenix Security</a> · <a href="https://phxintel.security">CVE Intelligence</a> · <a href="https://github.com/Security-Phoenix-demo/phoenix-firewall/issues">Report Bug</a>
+  <a href="https://phoenix.security">Phoenix Security</a> · <a href="https://phxintel.security">CVE Intelligence</a> · <a href="https://github.com/Security-Phoenix-demo/blue-shield-firewall/issues">Report Bug</a>
 </p>

@@ -1,4 +1,4 @@
-# Phoenix Firewall — GitLab CI Integration
+# Phoenix Security Blue Shield - Firewall — GitLab CI Integration
 
 ## Quick Start
 
@@ -12,13 +12,13 @@ stages:
   - test
   - build
 
-# Phoenix Firewall runs automatically on lockfile changes
+# Phoenix Security Blue Shield - Firewall runs automatically on lockfile changes
 # Set PHOENIX_API_KEY in CI/CD → Variables (masked)
 
 build:
   stage: build
   script:
-    - npm ci  # Protected by Phoenix Firewall
+    - npm ci  # Protected by Phoenix Security Blue Shield - Firewall
 ```
 
 ## Configuration Variables

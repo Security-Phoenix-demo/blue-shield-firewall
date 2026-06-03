@@ -21,6 +21,7 @@ var scanCmd = &cobra.Command{
 	Short: "One-shot lockfile scan",
 	Long:  `Parse a lockfile (package-lock.json, requirements.txt, Cargo.lock), check all packages against the Phoenix firewall, and output a report.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		warnIfAPIKeyFlag(cmd)
 		cfg := config.Load()
 
 		lockfile, _ := cmd.Flags().GetString("lockfile")
@@ -72,12 +73,17 @@ var scanCmd = &cobra.Command{
 				apiResult, apiErr := fwClient.Check(pkg.Ecosystem, pkg.Name, pkg.Version)
 				if apiErr != nil {
 					log.Printf("Warning: API error for %s/%s@%s: %v", pkg.Ecosystem, pkg.Name, pkg.Version, apiErr)
-					// Record as allowed on error (fail-open)
-					result = &client.CheckResult{
-						Allowed: true,
-						Verdict: "unknown",
-						Reason:  fmt.Sprintf("API error: %v", apiErr),
-						Action:  "allow",
+					if cfg.StrictMode {
+						// Fail closed in strict mode: block when the verdict cannot be obtained.
+						result = proxy.StrictBlock(fmt.Sprintf("fail-closed: firewall API unreachable (strict mode): %v", apiErr))
+					} else {
+						// Fail open by default — record as allowed on error.
+						result = &client.CheckResult{
+							Allowed: true,
+							Verdict: "unknown",
+							Reason:  fmt.Sprintf("API error: %v", apiErr),
+							Action:  "allow",
+						}
 					}
 				} else {
 					result = apiResult
