@@ -53,19 +53,22 @@ jobs:
         with:
           cosign-release: 'v2.4.1'
 
-      - name: Release (tag push) — build only, skip publish
+      - name: Release (tag push) — build, cosign-sign, publish
         if: startsWith(github.ref, 'refs/tags/v')
         uses: goreleaser/goreleaser-action@v6
         with:
           distribution: goreleaser
           version: '~> v2'
-          args: release --clean --skip=publish
+          args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Sign Windows binary (Azure Trusted Signing)
-        # continue-on-error: secrets not configured → action fails gracefully;
-        # cosign keyless signing (above) is the baseline integrity guarantee.
+        # Optional post-publish step. continue-on-error: true so a missing
+        # secret or cert does not fail the release. Cosign keyless signing
+        # (done by goreleaser above) is the baseline integrity guarantee.
+        # When Azure signing succeeds the updated .exe must be re-uploaded
+        # manually; automated re-upload is deferred until cert procurement.
         if: startsWith(github.ref, 'refs/tags/v')
         id: azure_sign
         continue-on-error: true
@@ -82,26 +85,6 @@ jobs:
           file-digest: SHA256
           timestamp-rfc3161: http://timestamp.acs.microsoft.com
           timestamp-digest: SHA256
-
-      - name: Recompute checksums after signing
-        # Only re-hash when Azure signing actually ran and modified the .exe.
-        # Skipping avoids invalidating the cosign signature on checksums.txt.
-        if: |
-          startsWith(github.ref, 'refs/tags/v') &&
-          steps.azure_sign.outcome == 'success'
-        run: |
-          cd dist
-          sha256sum *.tar.gz *.zip > checksums.txt
-
-      - name: Publish release with signed artifacts
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: goreleaser/goreleaser-action@v6
-        with:
-          distribution: goreleaser
-          version: '~> v2'
-          args: release --skip=build --skip=sign
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Snapshot build (manual dispatch — dry run, signing skipped)
         if: github.event_name == 'workflow_dispatch'
