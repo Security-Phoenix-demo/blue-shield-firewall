@@ -2,7 +2,7 @@
 
 Project root: `/Users/francescocipollone/Documents/GitHub/vulnerability-db/PUB-firewall`
 Detected ecosystems: go rust
-Generated at: 2026-05-11T18:00:58Z
+Generated at: 2026-06-03T07:47:55Z
 
 ### Manifests present
 
