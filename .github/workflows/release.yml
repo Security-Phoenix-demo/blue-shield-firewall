@@ -64,12 +64,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Sign Windows binary (Azure Trusted Signing)
-        # Runs only when Azure Trusted Signing secrets are present. Skipped
-        # gracefully in forks and repos without the secret set; cosign keyless
-        # signing (above) is the baseline integrity guarantee.
-        if: |
-          startsWith(github.ref, 'refs/tags/v') &&
-          secrets.AZURE_TENANT_ID != ''
+        # continue-on-error: secrets not configured → action fails gracefully;
+        # cosign keyless signing (above) is the baseline integrity guarantee.
+        if: startsWith(github.ref, 'refs/tags/v')
         id: azure_sign
         continue-on-error: true
         uses: azure/trusted-signing-action@v0.5.0
