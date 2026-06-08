@@ -20,7 +20,7 @@
   Install location. Defaults to $env:LOCALAPPDATA\Programs\phoenix-firewall.
 
 .EXAMPLE
-  irm https://raw.githubusercontent.com/Security-Phoenix-demo/phoenix-firewall/main/scripts/install.ps1 | iex
+  irm https://raw.githubusercontent.com/Security-Phoenix-demo/blue-shield-firewall/main/scripts/install.ps1 | iex
 #>
 
 [CmdletBinding()]
@@ -30,7 +30,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$repo = 'Security-Phoenix-demo/phoenix-firewall'
+$repo = 'Security-Phoenix-demo/blue-shield-firewall'
 
 # ---------------------------------------------------------------------------
 # Resolve version
