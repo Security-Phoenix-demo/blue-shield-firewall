@@ -7,7 +7,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/Security-Phoenix-demo/blue-shield-firewall/internal/client"
+	"github.com/Security-Phoenix-demo/blue-shield-firewall/phoenix-firewall/internal/client"
 )
 
 // FallbackEntry represents a single entry in the fallback feed JSON file.

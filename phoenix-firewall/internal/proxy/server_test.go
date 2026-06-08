@@ -12,9 +12,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Security-Phoenix-demo/blue-shield-firewall/internal/client"
-	"github.com/Security-Phoenix-demo/blue-shield-firewall/internal/proxy"
-	"github.com/Security-Phoenix-demo/blue-shield-firewall/internal/registry"
+	"github.com/Security-Phoenix-demo/blue-shield-firewall/phoenix-firewall/internal/client"
+	"github.com/Security-Phoenix-demo/blue-shield-firewall/phoenix-firewall/internal/proxy"
+	"github.com/Security-Phoenix-demo/blue-shield-firewall/phoenix-firewall/internal/registry"
 )
 
 // --- CA generation tests ---
