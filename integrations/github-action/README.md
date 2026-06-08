@@ -5,7 +5,7 @@
 ## Usage
 
 ```yaml
-- uses: phoenix-security/firewall-action@v1
+- uses: Security-Phoenix-demo/blue-shield-firewall/phoenix-firewall-action@v1
   with:
     api-key: ${{ secrets.PHOENIX_API_KEY }}
     mode: enforce
@@ -22,7 +22,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: phoenix-security/firewall-action@v1
+      - uses: Security-Phoenix-demo/blue-shield-firewall/phoenix-firewall-action@v1
         with:
           api-key: ${{ secrets.PHOENIX_API_KEY }}
           mode: enforce

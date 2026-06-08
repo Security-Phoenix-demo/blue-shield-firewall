@@ -8,7 +8,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/Security-Phoenix-demo/phoenix-firewall/internal/client"
+	"github.com/Security-Phoenix-demo/blue-shield-firewall/internal/client"
 )
 
 // maxFallbackFeedBytes caps the size of a fallback feed file read into memory.

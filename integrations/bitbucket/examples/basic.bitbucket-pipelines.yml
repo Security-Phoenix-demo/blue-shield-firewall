@@ -10,7 +10,7 @@ pipelines:
           - apk add --no-cache curl bash
           - |
             ARCH=$(uname -m); case "$ARCH" in x86_64) ARCH="amd64" ;; aarch64) ARCH="arm64" ;; esac
-            curl -sfL "https://github.com/Security-Phoenix-demo/phoenix-firewall/releases/latest/download/phoenix-firewall-linux-${ARCH}" \
+            curl -sfL "https://github.com/Security-Phoenix-demo/blue-shield-firewall/releases/latest/download/phoenix-firewall-linux-${ARCH}" \
               -o /usr/local/bin/phoenix-firewall && chmod +x /usr/local/bin/phoenix-firewall
           - eval $(phoenix-firewall --api-key $PHOENIX_API_KEY --ci)
         artifacts:

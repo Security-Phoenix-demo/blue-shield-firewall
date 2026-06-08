@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Security-Phoenix-demo/phoenix-firewall/internal/client"
-	"github.com/Security-Phoenix-demo/phoenix-firewall/internal/registry"
+	"github.com/Security-Phoenix-demo/blue-shield-firewall/internal/client"
+	"github.com/Security-Phoenix-demo/blue-shield-firewall/internal/registry"
 )
 
 // PackageResult holds the outcome of a single package check for reporting.

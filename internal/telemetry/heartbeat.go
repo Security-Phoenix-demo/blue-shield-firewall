@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/Security-Phoenix-demo/phoenix-firewall/internal/integrity"
+	"github.com/Security-Phoenix-demo/blue-shield-firewall/internal/integrity"
 )
 
 // httpClient carries an explicit timeout so a black-holed network can't hang

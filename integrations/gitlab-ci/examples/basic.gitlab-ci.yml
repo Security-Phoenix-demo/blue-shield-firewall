@@ -1,6 +1,6 @@
 # Basic GitLab CI with Phoenix Security Blue Shield - Firewall
 include:
-  - remote: 'https://raw.githubusercontent.com/Security-Phoenix-demo/phoenix-firewall/main/integrations/gitlab-ci/phoenix-firewall.yml'
+  - remote: 'https://raw.githubusercontent.com/Security-Phoenix-demo/blue-shield-firewall/main/integrations/gitlab-ci/phoenix-firewall.yml'
 
 stages:
   - security

@@ -12,9 +12,9 @@ import (
 	"time"
 
 	"github.com/elazarl/goproxy"
-	"github.com/Security-Phoenix-demo/phoenix-firewall/internal/client"
-	"github.com/Security-Phoenix-demo/phoenix-firewall/internal/config"
-	"github.com/Security-Phoenix-demo/phoenix-firewall/internal/registry"
+	"github.com/Security-Phoenix-demo/blue-shield-firewall/internal/client"
+	"github.com/Security-Phoenix-demo/blue-shield-firewall/internal/config"
+	"github.com/Security-Phoenix-demo/blue-shield-firewall/internal/registry"
 )
 
 const (

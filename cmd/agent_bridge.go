@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/Security-Phoenix-demo/phoenix-firewall/internal/client"
+	"github.com/Security-Phoenix-demo/blue-shield-firewall/internal/client"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )

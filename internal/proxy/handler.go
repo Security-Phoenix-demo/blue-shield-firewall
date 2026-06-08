@@ -6,8 +6,8 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/Security-Phoenix-demo/phoenix-firewall/internal/client"
-	"github.com/Security-Phoenix-demo/phoenix-firewall/internal/registry"
+	"github.com/Security-Phoenix-demo/blue-shield-firewall/internal/client"
+	"github.com/Security-Phoenix-demo/blue-shield-firewall/internal/registry"
 	"github.com/elazarl/goproxy"
 )
 

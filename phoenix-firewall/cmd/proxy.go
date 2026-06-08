@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 	"syscall"
 
-	"github.com/Security-Phoenix-demo/phoenix-firewall/internal/config"
-	"github.com/Security-Phoenix-demo/phoenix-firewall/internal/proxy"
+	"github.com/Security-Phoenix-demo/blue-shield-firewall/internal/config"
+	"github.com/Security-Phoenix-demo/blue-shield-firewall/internal/proxy"
 	"github.com/spf13/cobra"
 )
 

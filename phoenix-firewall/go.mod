@@ -1,4 +1,4 @@
-module github.com/Security-Phoenix-demo/phoenix-firewall
+module github.com/Security-Phoenix-demo/blue-shield-firewall
 
 go 1.23.0
 
