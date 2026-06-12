@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"strings"
 
 	"github.com/Security-Phoenix-demo/phoenix-firewall/internal/config"
 	"github.com/Security-Phoenix-demo/phoenix-firewall/internal/proxy"
@@ -40,7 +41,7 @@ again. This command only prints — start the proxy itself with 'proxy'.`,
 func init() {
 	rootCmd.AddCommand(envCmd)
 	envCmd.Flags().String("ca-dir", "", "Directory holding the CA certificate (default: ~/.phoenix-firewall/ca/)")
-	envCmd.Flags().String("shell", "posix", "Output syntax: posix|fish|powershell")
+	envCmd.Flags().String("shell", "posix", "Output syntax: posix|bash|zsh|sh|fish|powershell|pwsh")
 	envCmd.Flags().Bool("unset", false, "Print statements that unset the proxy variables instead of setting them")
 }
 
@@ -65,6 +66,22 @@ func proxyEnvVars(cfg *config.Config, caDir string) [][2]string {
 
 // printProxyExports writes shell-specific set/unset statements for the proxy env.
 func printProxyExports(w io.Writer, cfg *config.Config, caDir, shell string, unset bool) error {
+	// Resolve to an absolute path so the emitted CA-cert variables stay valid even
+	// if the caller (or a subprocess like a package install) later changes cwd.
+	absCADir, err := filepath.Abs(caDir)
+	if err != nil {
+		return fmt.Errorf("resolve absolute CA directory %q: %w", caDir, err)
+	}
+	caDir = absCADir
+
+	// Validate the shell up front rather than silently emitting POSIX syntax for an
+	// unsupported value, which would produce statements the target shell can't eval.
+	switch shell {
+	case "posix", "bash", "zsh", "sh", "fish", "powershell", "pwsh":
+	default:
+		return fmt.Errorf("unsupported shell %q (supported: posix, bash, zsh, sh, fish, powershell, pwsh)", shell)
+	}
+
 	for _, kv := range proxyEnvVars(cfg, caDir) {
 		name, val := kv[0], kv[1]
 		switch shell {
@@ -78,7 +95,9 @@ func printProxyExports(w io.Writer, cfg *config.Config, caDir, shell string, uns
 			if unset {
 				fmt.Fprintf(w, "Remove-Item Env:%s -ErrorAction SilentlyContinue\n", name)
 			} else {
-				fmt.Fprintf(w, "$Env:%s = %q\n", name, val)
+				// Single-quoted PowerShell strings are literal: no $ interpolation and
+				// no backslash escaping, so Windows CA paths (C:\...) survive intact.
+				fmt.Fprintf(w, "$Env:%s = %s\n", name, psSingleQuote(val))
 			}
 		default: // posix: bash / zsh / sh
 			if unset {
@@ -89,4 +108,10 @@ func printProxyExports(w io.Writer, cfg *config.Config, caDir, shell string, uns
 		}
 	}
 	return nil
+}
+
+// psSingleQuote wraps s in PowerShell single quotes, escaping any embedded single
+// quote by doubling it (”) per PowerShell literal-string rules.
+func psSingleQuote(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", "''") + "'"
 }

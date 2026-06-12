@@ -52,7 +52,19 @@ func TestPrintProxyExports_FishAndPowershell(t *testing.T) {
 	}
 	var ps bytes.Buffer
 	_ = printProxyExports(&ps, cfg, "/tmp/ca", "powershell", false)
-	if !strings.Contains(ps.String(), `$Env:HTTP_PROXY = "http://127.0.0.1:9000"`) {
+	if !strings.Contains(ps.String(), `$Env:HTTP_PROXY = 'http://127.0.0.1:9000'`) {
 		t.Errorf("powershell output wrong:\n%s", ps.String())
+	}
+}
+
+func TestPrintProxyExports_UnsupportedShell(t *testing.T) {
+	cfg := &config.Config{Port: 8080}
+	var buf bytes.Buffer
+	err := printProxyExports(&buf, cfg, "/tmp/ca", "cmd", false)
+	if err == nil {
+		t.Fatalf("expected error for unsupported shell, got nil (output: %q)", buf.String())
+	}
+	if buf.Len() != 0 {
+		t.Errorf("no statements should be emitted for an unsupported shell, got:\n%s", buf.String())
 	}
 }
