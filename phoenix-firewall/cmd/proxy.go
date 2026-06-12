@@ -27,6 +27,13 @@ var proxyCmd = &cobra.Command{
 			caDir = proxy.DefaultCADir()
 		}
 
+		// --print-exports: emit eval'able shell exports and exit without starting the
+		// server. Lets callers do: eval "$(phoenix-firewall proxy --print-exports)".
+		if printExports, _ := cmd.Flags().GetBool("print-exports"); printExports {
+			shell, _ := cmd.Flags().GetString("shell")
+			return printProxyExports(cmd.OutOrStdout(), cfg, caDir, shell, false)
+		}
+
 		trust, _ := cmd.Flags().GetBool("trust")
 
 		// Ensure CA exists
@@ -70,6 +77,10 @@ var proxyCmd = &cobra.Command{
 		if cfg.CIMode {
 			fmt.Println("CI mode: will exit with code 1 if any packages blocked")
 		}
+		// Hint how to route the current shell / CI job through this proxy. Printed to
+		// stderr so it never pollutes anything piping the proxy's stdout.
+		fmt.Fprintln(os.Stderr, "To route package managers through this proxy, run:")
+		fmt.Fprintln(os.Stderr, `  eval "$(phoenix-firewall env)"   # bash/zsh  (or: phoenix-firewall proxy --print-exports)`)
 
 		srv := proxy.NewServer(cfg)
 		srv.SetCA(ca)
@@ -132,4 +143,6 @@ func init() {
 
 	proxyCmd.Flags().String("ca-dir", "", "Directory for CA certificate and key (default: ~/.phoenix-firewall/ca/)")
 	proxyCmd.Flags().Bool("trust", false, "Attempt to inject CA into system trust store (requires sudo)")
+	proxyCmd.Flags().Bool("print-exports", false, "Print eval'able shell exports (HTTP(S)_PROXY + CA paths) and exit without starting the proxy")
+	proxyCmd.Flags().String("shell", "posix", "Shell syntax for --print-exports: posix|fish|powershell")
 }
