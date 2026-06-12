@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Security-Phoenix-demo/phoenix-firewall/internal/client"
+	"github.com/Security-Phoenix-demo/blue-shield-firewall/phoenix-firewall/internal/client"
 )
 
 // CacheEntry stores a cached firewall check result with expiry.

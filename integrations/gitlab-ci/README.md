@@ -6,7 +6,7 @@ Add to your `.gitlab-ci.yml`:
 
 ```yaml
 include:
-  - remote: 'https://raw.githubusercontent.com/Security-Phoenix-demo/phoenix-firewall/main/integrations/gitlab-ci/phoenix-firewall.yml'
+  - remote: 'https://raw.githubusercontent.com/Security-Phoenix-demo/blue-shield-firewall/main/integrations/gitlab-ci/phoenix-firewall.yml'
 
 stages:
   - test
@@ -39,7 +39,7 @@ Set these in **Settings → CI/CD → Variables**:
 
 ```yaml
 include:
-  - remote: 'https://raw.githubusercontent.com/Security-Phoenix-demo/phoenix-firewall/main/integrations/gitlab-ci/phoenix-firewall.yml'
+  - remote: 'https://raw.githubusercontent.com/Security-Phoenix-demo/blue-shield-firewall/main/integrations/gitlab-ci/phoenix-firewall.yml'
 
 variables:
   PHOENIX_MODE: enforce
@@ -49,7 +49,7 @@ variables:
 
 ```yaml
 include:
-  - remote: 'https://raw.githubusercontent.com/Security-Phoenix-demo/phoenix-firewall/main/integrations/gitlab-ci/phoenix-firewall.yml'
+  - remote: 'https://raw.githubusercontent.com/Security-Phoenix-demo/blue-shield-firewall/main/integrations/gitlab-ci/phoenix-firewall.yml'
 
 variables:
   PHOENIX_MODE: enforce

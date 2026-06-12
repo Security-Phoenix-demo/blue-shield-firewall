@@ -5,7 +5,7 @@ For any CI system not explicitly supported (CircleCI, Drone, Buildkite, etc.).
 ## One-Line Install
 
 ```bash
-curl -sfL https://raw.githubusercontent.com/Security-Phoenix-demo/phoenix-firewall/main/integrations/generic/install.sh | PHOENIX_API_KEY=your-key bash
+curl -sfL https://raw.githubusercontent.com/Security-Phoenix-demo/blue-shield-firewall/main/integrations/generic/install.sh | PHOENIX_API_KEY=your-key bash
 ```
 
 ## Standalone Lockfile Check (no proxy needed)
@@ -39,7 +39,7 @@ jobs:
       - checkout
       - run:
           name: Install Phoenix Security Blue Shield - Firewall
-          command: curl -sfL https://raw.githubusercontent.com/Security-Phoenix-demo/phoenix-firewall/main/integrations/generic/install.sh | bash
+          command: curl -sfL https://raw.githubusercontent.com/Security-Phoenix-demo/blue-shield-firewall/main/integrations/generic/install.sh | bash
       - run: npm ci  # Protected
 ```
 
@@ -51,7 +51,7 @@ steps:
     image: alpine
     commands:
       - apk add curl bash
-      - curl -sfL https://raw.githubusercontent.com/Security-Phoenix-demo/phoenix-firewall/main/integrations/generic/install.sh | bash
+      - curl -sfL https://raw.githubusercontent.com/Security-Phoenix-demo/blue-shield-firewall/main/integrations/generic/install.sh | bash
   - name: build
     image: node:22
     commands:
@@ -63,7 +63,7 @@ steps:
 ```yaml
 steps:
   - label: ":shield: Phoenix Security Blue Shield - Firewall"
-    command: curl -sfL https://raw.githubusercontent.com/Security-Phoenix-demo/phoenix-firewall/main/integrations/generic/install.sh | bash
+    command: curl -sfL https://raw.githubusercontent.com/Security-Phoenix-demo/blue-shield-firewall/main/integrations/generic/install.sh | bash
   - label: ":npm: Install"
     command: npm ci
 ```

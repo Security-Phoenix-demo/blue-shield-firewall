@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Phoenix Security Blue Shield - Firewall — userland installer (macOS / Linux)
 #
-#   curl -sSfL https://raw.githubusercontent.com/Security-Phoenix-demo/phoenix-firewall/main/scripts/install.sh | bash
+#   curl -sSfL https://raw.githubusercontent.com/Security-Phoenix-demo/blue-shield-firewall/main/scripts/install.sh | bash
 #   curl -sSfL ... | bash -s -- --version v0.1.0 --prefix /usr/local
 #
 # Handles unsigned-binary gotchas:
@@ -12,7 +12,7 @@
 
 set -euo pipefail
 
-REPO="Security-Phoenix-demo/phoenix-firewall"
+REPO="Security-Phoenix-demo/blue-shield-firewall"
 VERSION=""                   # empty → latest
 PREFIX="${PHOENIX_INSTALL_PREFIX:-$HOME/.local/bin}"
 TMPDIR=""

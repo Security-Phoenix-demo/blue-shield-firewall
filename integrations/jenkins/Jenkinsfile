@@ -19,7 +19,7 @@ pipeline {
                         aarch64) ARCH="arm64" ;;
                     esac
                     OS=$(uname -s | tr '[:upper:]' '[:lower:]')
-                    curl -sfL "https://github.com/Security-Phoenix-demo/phoenix-firewall/releases/latest/download/phoenix-firewall-${OS}-${ARCH}" \
+                    curl -sfL "https://github.com/Security-Phoenix-demo/blue-shield-firewall/releases/latest/download/phoenix-firewall-${OS}-${ARCH}" \
                         -o /tmp/phoenix-firewall
                     chmod +x /tmp/phoenix-firewall
 

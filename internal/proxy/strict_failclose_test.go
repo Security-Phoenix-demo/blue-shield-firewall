@@ -5,8 +5,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/Security-Phoenix-demo/phoenix-firewall/internal/proxy"
-	"github.com/Security-Phoenix-demo/phoenix-firewall/internal/registry"
+	"github.com/Security-Phoenix-demo/blue-shield-firewall/internal/proxy"
+	"github.com/Security-Phoenix-demo/blue-shield-firewall/internal/registry"
 )
 
 // failingAPIServer returns a server that always 500s, so client.Check errors.

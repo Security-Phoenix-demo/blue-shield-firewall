@@ -8,7 +8,7 @@
 #   PHOENIX_API_KEY: Your Phoenix API key (masked)
 
 include:
-  - remote: 'https://raw.githubusercontent.com/Security-Phoenix-demo/phoenix-firewall/main/integrations/gitlab-ci/phoenix-firewall.yml'
+  - remote: 'https://raw.githubusercontent.com/Security-Phoenix-demo/blue-shield-firewall/main/integrations/gitlab-ci/phoenix-firewall.yml'
 
 variables:
   # Replace with your self-hosted GitLab hostname

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Phoenix Security Blue Shield - Firewall — Universal Installer
-# Usage: curl -sfL https://raw.githubusercontent.com/Security-Phoenix-demo/phoenix-firewall/main/integrations/generic/install.sh | bash
+# Usage: curl -sfL https://raw.githubusercontent.com/Security-Phoenix-demo/blue-shield-firewall/main/integrations/generic/install.sh | bash
 #
 # Environment variables:
 #   PHOENIX_API_KEY     - API key (required)
@@ -35,7 +35,7 @@ esac
 INSTALL_DIR="${PHOENIX_INSTALL_DIR:-/usr/local/bin}"
 VERSION="${PHOENIX_VERSION:-latest}"
 BINARY="phoenix-firewall-${OS}-${ARCH}"
-BASE_URL="https://github.com/Security-Phoenix-demo/phoenix-firewall/releases"
+BASE_URL="https://github.com/Security-Phoenix-demo/blue-shield-firewall/releases"
 
 # Resolve latest version
 if [ "$VERSION" = "latest" ]; then

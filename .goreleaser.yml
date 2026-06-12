@@ -28,9 +28,9 @@ builds:
         goarch: arm64
     ldflags:
       - -s -w
-      - -X github.com/Security-Phoenix-demo/phoenix-firewall/cmd.version={{.Version}}
-      - -X github.com/Security-Phoenix-demo/phoenix-firewall/cmd.commit={{.Commit}}
-      - -X github.com/Security-Phoenix-demo/phoenix-firewall/cmd.date={{.Date}}
+      - -X github.com/Security-Phoenix-demo/blue-shield-firewall/cmd.version={{.Version}}
+      - -X github.com/Security-Phoenix-demo/blue-shield-firewall/cmd.commit={{.Commit}}
+      - -X github.com/Security-Phoenix-demo/blue-shield-firewall/cmd.date={{.Date}}
 
 archives:
   - id: default
@@ -93,7 +93,7 @@ release:
 
     ```bash
     # macOS / Linux
-    curl -sSfL https://github.com/Security-Phoenix-demo/phoenix-firewall/releases/download/v{{.Version}}/phoenix-firewall_{{.Version}}_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/').tar.gz | tar -xz
+    curl -sSfL https://github.com/Security-Phoenix-demo/blue-shield-firewall/releases/download/v{{.Version}}/phoenix-firewall_{{.Version}}_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/').tar.gz | tar -xz
     mv phoenix-firewall ~/.local/bin/
     phoenix-firewall init
     phoenix-firewall enroll --api-key <your-key>
@@ -104,4 +104,4 @@ release:
     > Verify integrity via the provided `checksums.txt` (SHA-256).
 
   footer: |
-    **Full Changelog**: https://github.com/Security-Phoenix-demo/phoenix-firewall/compare/{{.PreviousTag}}...{{.Tag}}
+    **Full Changelog**: https://github.com/Security-Phoenix-demo/blue-shield-firewall/compare/{{.PreviousTag}}...{{.Tag}}

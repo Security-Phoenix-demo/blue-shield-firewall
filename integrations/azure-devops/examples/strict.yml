@@ -7,7 +7,7 @@ resources:
   repositories:
     - repository: phoenix-firewall
       type: github
-      name: Security-Phoenix-demo/phoenix-firewall
+      name: Security-Phoenix-demo/blue-shield-firewall
       endpoint: github-connection
 
 pool:

@@ -1,6 +1,6 @@
 package proxy_test
 
-import "github.com/Security-Phoenix-demo/phoenix-firewall/internal/client"
+import "github.com/Security-Phoenix-demo/blue-shield-firewall/phoenix-firewall/internal/client"
 
 // newTestClient creates a firewall client pointing at a test server URL.
 func newTestClient(baseURL, apiKey string) *client.Client {

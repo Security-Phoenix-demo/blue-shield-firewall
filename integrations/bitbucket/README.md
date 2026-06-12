@@ -10,7 +10,7 @@ pipelines:
         image: alpine:3.19
         script:
           - apk add --no-cache curl bash
-          - curl -sfL https://github.com/Security-Phoenix-demo/phoenix-firewall/releases/latest/download/phoenix-firewall-linux-amd64 -o /usr/local/bin/phoenix-firewall
+          - curl -sfL https://github.com/Security-Phoenix-demo/blue-shield-firewall/releases/latest/download/phoenix-firewall-linux-amd64 -o /usr/local/bin/phoenix-firewall
           - chmod +x /usr/local/bin/phoenix-firewall
           - eval $(phoenix-firewall --api-key $PHOENIX_API_KEY --ci)
         artifacts:
