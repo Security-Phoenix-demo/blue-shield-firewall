@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/Security-Phoenix-demo/blue-shield-firewall/internal/client"
 	"github.com/spf13/cobra"
@@ -158,7 +159,43 @@ func agentBridgeFallback(ecosystem, pkg, command string) error {
 		Reason:     result.Reason,
 		Source:     "backend_evaluate",
 	})
+	emitInstallActivity(c, ecosystem, name, version, command, result)
 	return nil
+}
+
+func emitInstallActivity(c *client.Client, ecosystem, name, version, command string, result *client.CheckResult) {
+	deviceID := viper.GetString("device_id")
+	if deviceID == "" {
+		deviceID = os.Getenv("PHOENIX_DEVICE_ID")
+	}
+	if deviceID == "" || name == "" {
+		return
+	}
+	metadata := map[string]interface{}{
+		"source":  "agent-bridge",
+		"action":  result.Action,
+		"verdict": result.Verdict,
+	}
+	teamID := viper.GetString("team_id")
+	if teamID == "" {
+		teamID = os.Getenv("PHOENIX_TEAM_ID")
+	}
+	if teamID != "" {
+		metadata["team_id_hint"] = teamID
+	}
+	if err := c.SendActivity(client.EndpointActivityEvent{
+		DeviceID:       deviceID,
+		EventType:      "package_install",
+		CollectorType:  "shim",
+		OccurredAt:     time.Now().UTC().Format(time.RFC3339),
+		Ecosystem:      ecosystem,
+		PackageName:    name,
+		PackageVersion: version,
+		CommandText:    command,
+		Metadata:       metadata,
+	}); err != nil {
+		fmt.Fprintf(os.Stderr, "[agent-bridge] activity emit failed: %v\n", err)
+	}
 }
 
 // splitNameVersion splits "lodash@1.2.3" into ("lodash", "1.2.3").

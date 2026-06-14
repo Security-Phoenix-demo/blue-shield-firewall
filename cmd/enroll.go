@@ -21,11 +21,12 @@ Get your API key at https://phxintel.security.`,
 		apiURL, _ := cmd.Flags().GetString("api-url")
 		tenantID, _ := cmd.Flags().GetString("tenant-id")
 		deviceID, _ := cmd.Flags().GetString("device-id")
-		return runEnroll(apiKey, apiURL, tenantID, deviceID)
+		teamID, _ := cmd.Flags().GetString("team-id")
+		return runEnroll(apiKey, apiURL, tenantID, deviceID, teamID)
 	},
 }
 
-func runEnroll(apiKey, apiURL, tenantID, deviceID string) error {
+func runEnroll(apiKey, apiURL, tenantID, deviceID, teamID string) error {
 	if apiKey == "" {
 		return fmt.Errorf("--api-key is required; get yours at https://phxintel.security")
 	}
@@ -57,11 +58,17 @@ func runEnroll(apiKey, apiURL, tenantID, deviceID string) error {
 	if deviceID != "" {
 		existing = upsertTOMLLine(existing, "device_id", fmt.Sprintf("%q", deviceID))
 	}
+	if teamID != "" {
+		existing = upsertTOMLLine(existing, "team_id", fmt.Sprintf("%q", teamID))
+	}
 
 	if err := os.WriteFile(tomlPath, []byte(existing), 0600); err != nil {
 		return fmt.Errorf("write agent.toml: %w", err)
 	}
 	fmt.Printf("[phoenix-firewall] enrolled: API key written to %s\n", tomlPath)
+	if teamID != "" {
+		fmt.Println("[phoenix-firewall] team_id stored as a non-authoritative collector hint; Phoenix resolves access server-side.")
+	}
 	fmt.Println("[phoenix-firewall] you're good to go — shims will evaluate packages via Phoenix.")
 	return nil
 }
@@ -89,6 +96,7 @@ func init() {
 	enrollCmd.Flags().String("api-url", "https://api.phxintel.security", "Phoenix API base URL")
 	enrollCmd.Flags().String("tenant-id", "", "Tenant ID (optional; auto-detected from API key)")
 	enrollCmd.Flags().String("device-id", "", "Device ID (optional; auto-generated if not set)")
+	enrollCmd.Flags().String("team-id", "", "Team ID hint (optional; metadata only, not authorization)")
 	_ = enrollCmd.MarkFlagRequired("api-key")
 	rootCmd.AddCommand(enrollCmd)
 }

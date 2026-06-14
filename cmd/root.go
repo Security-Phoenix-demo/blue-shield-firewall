@@ -30,6 +30,8 @@ func init() {
 
 	rootCmd.PersistentFlags().String("api-url", "http://localhost:8000", "Phoenix firewall API base URL")
 	rootCmd.PersistentFlags().String("api-key", "", "Phoenix firewall API key")
+	rootCmd.PersistentFlags().String("device-id", "", "Endpoint device UUID assigned by Phoenix")
+	rootCmd.PersistentFlags().String("team-id", "", "Optional team hint stored as collector metadata only")
 	rootCmd.PersistentFlags().Int("port", 8080, "Proxy listen port")
 	rootCmd.PersistentFlags().Bool("verbose", false, "Enable verbose logging")
 	rootCmd.PersistentFlags().String("log-format", "text", "Log format (json|text)")
@@ -43,6 +45,8 @@ func init() {
 
 	_ = viper.BindPFlag("api_url", rootCmd.PersistentFlags().Lookup("api-url"))
 	_ = viper.BindPFlag("api_key", rootCmd.PersistentFlags().Lookup("api-key"))
+	_ = viper.BindPFlag("device_id", rootCmd.PersistentFlags().Lookup("device-id"))
+	_ = viper.BindPFlag("team_id", rootCmd.PersistentFlags().Lookup("team-id"))
 	_ = viper.BindPFlag("port", rootCmd.PersistentFlags().Lookup("port"))
 	_ = viper.BindPFlag("verbose", rootCmd.PersistentFlags().Lookup("verbose"))
 	_ = viper.BindPFlag("log_format", rootCmd.PersistentFlags().Lookup("log-format"))

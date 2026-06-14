@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
+	"runtime"
 	"time"
 
 	"github.com/Security-Phoenix-demo/blue-shield-firewall/internal/integrity"
@@ -60,6 +62,18 @@ func (h *HeartbeatSender) send() error {
 		"agent_version": "0.1.0",
 		"ts":            time.Now().UTC().Format(time.RFC3339),
 		"proxy_health":  "running",
+		"collector_capabilities": []string{
+			"package_manager_shim",
+			"developer_software_inventory",
+			"package_lockfile_inventory",
+			"install_activity_events",
+		},
+		"endpoint_metadata": map[string]string{
+			"hostname":     hostnameBestEffort(),
+			"os":           runtime.GOOS,
+			"arch":         runtime.GOARCH,
+			"team_id_hint": os.Getenv("PHOENIX_TEAM_ID"),
+		},
 		"integrity": map[string]string{
 			"phoenix_firewall_bin_sha256": integrity.HashFileBestEffort("/usr/local/bin/phoenix-firewall"),
 			"ca_pem_sha256":               integrity.HashFileBestEffort("/etc/phoenix-firewall/ca.pem"),
@@ -85,4 +99,12 @@ func (h *HeartbeatSender) send() error {
 	}
 	defer resp.Body.Close()
 	return nil
+}
+
+func hostnameBestEffort() string {
+	hostname, err := os.Hostname()
+	if err != nil {
+		return ""
+	}
+	return hostname
 }

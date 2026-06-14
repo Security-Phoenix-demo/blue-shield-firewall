@@ -6,8 +6,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/Security-Phoenix-demo/phoenix-firewall/internal/proxy"
-	"github.com/Security-Phoenix-demo/phoenix-firewall/internal/shim"
+	"github.com/Security-Phoenix-demo/blue-shield-firewall/internal/proxy"
+	"github.com/Security-Phoenix-demo/blue-shield-firewall/internal/shim"
 	"github.com/spf13/cobra"
 )
 
@@ -52,6 +52,8 @@ func runInit(apiKey, apiURL string) error {
 
 api_url = %q
 api_key = %q  # replace with your key from phxintel.security
+device_id = ""  # endpoint UUID assigned by Phoenix after enrollment
+team_id = ""    # optional display/reconciliation hint only; Phoenix authorizes server-side
 
 [policy]
 poll_interval_s = 300
@@ -87,9 +89,16 @@ mode = "open"
 	bridge := map[string]interface{}{
 		"socket_path":  filepath.Join(cfgDir, "worker.sock"),
 		"api_base_url": apiURL,
+		"device_id":    "",
 		"proxy_port":   8080,
 		"ca_path":      caPath,
 		"version":      "v4-userland",
+		"collector_capabilities": []string{
+			"package_manager_shim",
+			"developer_software_inventory",
+			"package_lockfile_inventory",
+			"install_activity_events",
+		},
 	}
 	bridgeBytes, _ := json.MarshalIndent(bridge, "", "  ")
 	if err := os.WriteFile(bridgePath, bridgeBytes, 0600); err != nil {

@@ -10,6 +10,10 @@ type Config struct {
 	APIUrl string
 	// APIKey is the authentication key for the firewall API.
 	APIKey string
+	// DeviceID is the endpoint UUID assigned by Phoenix.
+	DeviceID string
+	// TeamID is an optional collector-side hint for display/reconciliation only.
+	TeamID string
 	// Port is the local port the proxy listens on.
 	Port int
 	// Verbose enables debug-level logging.
@@ -41,6 +45,8 @@ func Load() *Config {
 	return &Config{
 		APIUrl:          viper.GetString("api_url"),
 		APIKey:          viper.GetString("api_key"),
+		DeviceID:        viper.GetString("device_id"),
+		TeamID:          viper.GetString("team_id"),
 		Port:            viper.GetInt("port"),
 		Verbose:         viper.GetBool("verbose"),
 		LogFormat:       viper.GetString("log_format"),
