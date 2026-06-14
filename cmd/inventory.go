@@ -9,6 +9,7 @@ import (
 
 	"github.com/Security-Phoenix-demo/blue-shield-firewall/internal/client"
 	"github.com/Security-Phoenix-demo/blue-shield-firewall/internal/config"
+	"github.com/Security-Phoenix-demo/blue-shield-firewall/internal/endpoint"
 	"github.com/Security-Phoenix-demo/blue-shield-firewall/internal/inventory"
 	"github.com/Security-Phoenix-demo/blue-shield-firewall/internal/registry"
 	"github.com/spf13/cobra"
@@ -26,6 +27,7 @@ var inventoryCmd = &cobra.Command{
 		if deviceID == "" {
 			deviceID = cfg.DeviceID
 		}
+		identity := endpoint.Collect()
 		teamID, _ := cmd.Flags().GetString("team-id")
 		if teamID == "" {
 			teamID = cfg.TeamID
@@ -35,14 +37,14 @@ var inventoryCmd = &cobra.Command{
 		dryRun, _ := cmd.Flags().GetBool("dry-run")
 
 		if deviceID == "" {
-			return fmt.Errorf("--device-id or PHOENIX_DEVICE_ID is required")
+			deviceID = identity.DeviceID
 		}
 
 		refs, sources, err := collectLockfileRefs(lockfileFlags)
 		if err != nil {
 			return err
 		}
-		hints := inventory.MetadataHints{TeamID: teamID, ProjectID: projectID}
+		hints := inventory.MetadataHints{TeamID: teamID, ProjectID: projectID, EndpointMetadata: identity.Metadata("shim")}
 		packages := []client.PackageInventoryItem{}
 		for _, source := range sources {
 			packages = append(packages, inventory.PackageItems(refs[source], source, hints)...)

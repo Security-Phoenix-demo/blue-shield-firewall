@@ -45,6 +45,25 @@ type CombinedInventoryPayload struct {
 	Software      []SoftwareInventoryItem `json:"software,omitempty"`
 }
 
+type EnrollRequest struct {
+	TenantID         string                 `json:"tenant_id,omitempty"`
+	DeviceID         string                 `json:"device_id"`
+	BootstrapToken   string                 `json:"bootstrap_token"`
+	Hostname         string                 `json:"hostname"`
+	Platform         string                 `json:"platform"`
+	AgentVersion     string                 `json:"agent_version"`
+	TeamID           string                 `json:"team_id,omitempty"`
+	AssignedUserHash string                 `json:"assigned_user_hash,omitempty"`
+	Metadata         map[string]interface{} `json:"metadata,omitempty"`
+}
+
+type EnrollResponse struct {
+	APIKey        string `json:"api_key"`
+	APIKeyID      string `json:"api_key_id"`
+	DeviceID      string `json:"device_id"`
+	PolicyVersion string `json:"policy_version,omitempty"`
+}
+
 type EndpointActivityEvent struct {
 	DeviceID        string                 `json:"device_id"`
 	EventType       string                 `json:"event_type"`
@@ -63,6 +82,41 @@ type EndpointActivityEvent struct {
 
 func (c *Client) UploadCombinedInventory(payload CombinedInventoryPayload) error {
 	return c.postAgentJSON("/api/v1/firewall/agent/inventory/combined", payload)
+}
+
+func (c *Client) EnrollDevice(payload EnrollRequest) (*EnrollResponse, error) {
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return nil, fmt.Errorf("marshal request: %w", err)
+	}
+	req, err := http.NewRequest(http.MethodPost, c.baseURL+"/api/v1/firewall/agent/enroll", bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	if c.apiKey != "" {
+		req.Header.Set("x-api-key", c.apiKey)
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("firewall API request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(io.LimitReader(resp.Body, 64<<10))
+	if err != nil {
+		return nil, fmt.Errorf("read response: %w", err)
+	}
+	if resp.StatusCode < 200 || resp.StatusCode > 299 {
+		return nil, fmt.Errorf("firewall API returned %d: %s", resp.StatusCode, string(respBody))
+	}
+
+	var out EnrollResponse
+	if err := json.Unmarshal(respBody, &out); err != nil {
+		return nil, fmt.Errorf("parse enrollment response: %w", err)
+	}
+	return &out, nil
 }
 
 func (c *Client) SendActivity(event EndpointActivityEvent) error {

@@ -11,8 +11,9 @@ import (
 )
 
 type MetadataHints struct {
-	TeamID    string
-	ProjectID string
+	TeamID           string
+	ProjectID        string
+	EndpointMetadata map[string]interface{}
 }
 
 func PackageItems(refs []registry.PackageRef, installSource string, hints MetadataHints) []client.PackageInventoryItem {
@@ -80,6 +81,9 @@ func hintMetadata(hints MetadataHints) map[string]interface{} {
 	}
 	if hints.ProjectID != "" {
 		metadata["project_id_hint"] = hints.ProjectID
+	}
+	for key, value := range hints.EndpointMetadata {
+		metadata[key] = value
 	}
 	if len(metadata) == 0 {
 		return nil

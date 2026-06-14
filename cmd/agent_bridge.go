@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/Security-Phoenix-demo/blue-shield-firewall/internal/client"
+	"github.com/Security-Phoenix-demo/blue-shield-firewall/internal/endpoint"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -168,6 +169,10 @@ func emitInstallActivity(c *client.Client, ecosystem, name, version, command str
 	if deviceID == "" {
 		deviceID = os.Getenv("PHOENIX_DEVICE_ID")
 	}
+	identity := endpoint.Collect()
+	if deviceID == "" {
+		deviceID = identity.DeviceID
+	}
 	if deviceID == "" || name == "" {
 		return
 	}
@@ -175,6 +180,9 @@ func emitInstallActivity(c *client.Client, ecosystem, name, version, command str
 		"source":  "agent-bridge",
 		"action":  result.Action,
 		"verdict": result.Verdict,
+	}
+	for key, value := range identity.Metadata("shim") {
+		metadata[key] = value
 	}
 	teamID := viper.GetString("team_id")
 	if teamID == "" {
