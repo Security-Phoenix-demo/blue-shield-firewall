@@ -238,7 +238,7 @@ phoenix-firewall system status
 ### Configuration: `~/.config/phoenix-firewall/agent.toml`
 
 ```toml
-api_url = "https://api.phxintel.security"
+api_url = "https://phxintel.security"
 api_key = "phx_fwagent_..."
 
 [policy]
@@ -281,7 +281,7 @@ cargo build
 ### Offline / air-gapped mode
 
 ```bash
-curl -sf https://api.phxintel.security/api/v1/firewall/feed/npm.json -o npm-feed.json
+curl -sf https://phxintel.security/api/v1/firewall/feed/npm.json -o npm-feed.json
 phoenix-firewall proxy --api-key $PHOENIX_API_KEY --fallback-feed npm-feed.json --ci
 ```
 
@@ -302,7 +302,7 @@ Subcommands:
   version       Print version information
 
 Global flags:
-  --api-url string    Phoenix API base URL (default: https://api.phxintel.security)
+  --api-url string    Phoenix API base URL (default: https://phxintel.security)
   --api-key string    Phoenix API key [env: PHOENIX_API_KEY]
   --verbose           Verbose logging
 
