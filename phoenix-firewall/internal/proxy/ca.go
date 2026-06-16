@@ -110,11 +110,11 @@ func EnsureCA(dir string) (*tls.Certificate, error) {
 	return LoadCA(certPath, keyPath)
 }
 
-// DefaultCADir returns the default CA directory (~/.phoenix-firewall/ca/).
+// DefaultCADir returns the default CA directory (~/.config/phoenix-firewall/).
 func DefaultCADir() string {
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return filepath.Join(".", ".phoenix-firewall", "ca")
+		return filepath.Join(".", ".config", "phoenix-firewall")
 	}
-	return filepath.Join(home, ".phoenix-firewall", "ca")
+	return filepath.Join(home, ".config", "phoenix-firewall")
 }

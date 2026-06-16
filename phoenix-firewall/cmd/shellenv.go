@@ -24,7 +24,7 @@ cargo, git) honour it. Designed to be eval'd into the current shell:
   phoenix-firewall env --shell powershell | Invoke-Expression
 
 The proxy URL is derived from --port (default 8080) and the CA path from
---ca-dir (default ~/.phoenix-firewall/ca/). Use --unset to remove the variables
+--ca-dir (default ~/.config/phoenix-firewall/). Use --unset to remove the variables
 again. This command only prints — start the proxy itself with 'proxy'.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cfg := config.Load()
@@ -40,7 +40,7 @@ again. This command only prints — start the proxy itself with 'proxy'.`,
 
 func init() {
 	rootCmd.AddCommand(envCmd)
-	envCmd.Flags().String("ca-dir", "", "Directory holding the CA certificate (default: ~/.phoenix-firewall/ca/)")
+	envCmd.Flags().String("ca-dir", "", "Directory holding the CA certificate (default: ~/.config/phoenix-firewall/)")
 	envCmd.Flags().String("shell", "posix", "Output syntax: posix|bash|zsh|sh|fish|powershell|pwsh")
 	envCmd.Flags().Bool("unset", false, "Print statements that unset the proxy variables instead of setting them")
 }

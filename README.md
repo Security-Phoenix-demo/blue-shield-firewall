@@ -264,8 +264,8 @@ phoenix-firewall proxy --api-key $PHOENIX_API_KEY
 
 # In another terminal:
 export HTTPS_PROXY=http://127.0.0.1:8080
-export NODE_EXTRA_CA_CERTS=~/.phoenix-firewall/ca/phoenix-ca.crt
-export SSL_CERT_FILE=~/.phoenix-firewall/ca/phoenix-ca.crt
+export NODE_EXTRA_CA_CERTS=~/.config/phoenix-firewall/phoenix-ca.crt
+export SSL_CERT_FILE=~/.config/phoenix-firewall/phoenix-ca.crt
 npm ci
 ```
 
@@ -308,7 +308,7 @@ Global flags:
 
 proxy flags:
   --port int          Proxy listen port (default: 8080)
-  --ca-dir string     CA directory (default: ~/.phoenix-firewall/ca/)
+  --ca-dir string     CA directory (default: ~/.config/phoenix-firewall/)
   --trust             Inject CA into system trust store (requires sudo)
   --ci                CI mode: print eval-able env var exports
   --strict            Fail-closed when API unreachable
