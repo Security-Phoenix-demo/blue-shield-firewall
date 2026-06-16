@@ -28,7 +28,7 @@ Run 'phoenix-firewall enroll --api-key <key>' after this to activate.`,
 		apiKey, _ := cmd.Flags().GetString("api-key")
 		apiURL, _ := cmd.Flags().GetString("api-url")
 		if apiURL == "" {
-			apiURL = "https://api.phxintel.security"
+			apiURL = "https://phxintel.security"
 		}
 		return runInit(apiKey, apiURL)
 	},
@@ -131,6 +131,6 @@ mode = "open"
 
 func init() {
 	initCmd.Flags().String("api-key", "", "Phoenix API key (optional — can be added later via enroll)")
-	initCmd.Flags().String("api-url", "https://api.phxintel.security", "Phoenix API base URL")
+	initCmd.Flags().String("api-url", "https://phxintel.security", "Phoenix API base URL")
 	rootCmd.AddCommand(initCmd)
 }
