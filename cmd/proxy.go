@@ -133,6 +133,6 @@ var proxyCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(proxyCmd)
 
-	proxyCmd.Flags().String("ca-dir", "", "Directory for CA certificate and key (default: ~/.phoenix-firewall/ca/)")
+	proxyCmd.Flags().String("ca-dir", "", "Directory for CA certificate and key (default: ~/.config/phoenix-firewall/)")
 	proxyCmd.Flags().Bool("trust", false, "Attempt to inject CA into system trust store (requires sudo)")
 }

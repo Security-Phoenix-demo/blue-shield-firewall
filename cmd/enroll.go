@@ -64,7 +64,7 @@ func runEnrollWithOptions(opts enrollOptions) error {
 		return fmt.Errorf("--api-key is required; get yours at https://phxintel.security")
 	}
 	if opts.APIURL == "" {
-		opts.APIURL = "https://api.phxintel.security"
+		opts.APIURL = "https://phxintel.security"
 	}
 	if opts.DeviceID == "" {
 		opts.DeviceID = opts.Identity.DeviceID
@@ -154,7 +154,7 @@ func upsertTOMLLine(content, key, quotedValue string) string {
 
 func init() {
 	enrollCmd.Flags().String("api-key", "", "Your Phoenix API key (required)")
-	enrollCmd.Flags().String("api-url", "https://api.phxintel.security", "Phoenix API base URL")
+	enrollCmd.Flags().String("api-url", "https://phxintel.security", "Phoenix API base URL")
 	enrollCmd.Flags().String("tenant-id", "", "Tenant ID (optional; auto-detected from API key)")
 	enrollCmd.Flags().String("device-id", "", "Device ID (optional; auto-generated if not set)")
 	enrollCmd.Flags().String("team-id", "", "Team ID hint (optional; metadata only, not authorization)")

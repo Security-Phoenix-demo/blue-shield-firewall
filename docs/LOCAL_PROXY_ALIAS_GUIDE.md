@@ -38,7 +38,7 @@ The current binary default is port `8080`. If you change `--port`, update the al
 The proxy generates its CA certificate at:
 
 ```bash
-~/.phoenix-firewall/ca/phoenix-ca.crt
+~/.config/phoenix-firewall/phoenix-ca.crt
 ```
 
 Package managers need both:
@@ -52,7 +52,7 @@ Paste this into the shell where you will run installs:
 
 ```bash
 export PHOENIX_FIREWALL_PROXY_URL="http://127.0.0.1:8080"
-export PHOENIX_FIREWALL_CA="$HOME/.phoenix-firewall/ca/phoenix-ca.crt"
+export PHOENIX_FIREWALL_CA="$HOME/.config/phoenix-firewall/phoenix-ca.crt"
 ```
 
 Then define the package manager functions you need.
@@ -273,7 +273,7 @@ Add this block to `~/.zshrc` or `~/.bashrc` when you want persistent aliases:
 ```bash
 # Phoenix Security Blue Shield - Firewall proxy aliases
 export PHOENIX_FIREWALL_PROXY_URL="${PHOENIX_FIREWALL_PROXY_URL:-http://127.0.0.1:8080}"
-export PHOENIX_FIREWALL_CA="${PHOENIX_FIREWALL_CA:-$HOME/.phoenix-firewall/ca/phoenix-ca.crt}"
+export PHOENIX_FIREWALL_CA="${PHOENIX_FIREWALL_CA:-$HOME/.config/phoenix-firewall/phoenix-ca.crt}"
 
 pf-npm() {
   env HTTPS_PROXY="$PHOENIX_FIREWALL_PROXY_URL" HTTP_PROXY="$PHOENIX_FIREWALL_PROXY_URL" NODE_EXTRA_CA_CERTS="$PHOENIX_FIREWALL_CA" npm "$@"
@@ -311,7 +311,7 @@ source ~/.bashrc
 
 If the package manager reports certificate errors:
 
-- confirm `~/.phoenix-firewall/ca/phoenix-ca.crt` exists;
+- confirm `~/.config/phoenix-firewall/phoenix-ca.crt` exists;
 - confirm the relevant CA env var is set;
 - restart the proxy if the CA was regenerated;
 - use `--trust` for tools that only use the system trust store.

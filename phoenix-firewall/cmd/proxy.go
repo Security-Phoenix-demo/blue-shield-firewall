@@ -141,7 +141,7 @@ var proxyCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(proxyCmd)
 
-	proxyCmd.Flags().String("ca-dir", "", "Directory for CA certificate and key (default: ~/.phoenix-firewall/ca/)")
+	proxyCmd.Flags().String("ca-dir", "", "Directory for CA certificate and key (default: ~/.config/phoenix-firewall/)")
 	proxyCmd.Flags().Bool("trust", false, "Attempt to inject CA into system trust store (requires sudo)")
 	proxyCmd.Flags().Bool("print-exports", false, "Print eval'able shell exports (HTTP(S)_PROXY + CA paths) and exit without starting the proxy")
 	proxyCmd.Flags().String("shell", "posix", "Shell syntax for --print-exports: posix|bash|zsh|sh|fish|powershell|pwsh")
