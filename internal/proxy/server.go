@@ -30,6 +30,7 @@ type Server struct {
 	proxy      *goproxy.ProxyHttpServer
 	httpSrv    *http.Server
 	handlerCfg func(h *RequestHandler)
+	health     *HealthState
 }
 
 // NewServer creates a new proxy server with the given configuration and CA certificate.
@@ -40,6 +41,12 @@ func NewServer(cfg *config.Config) *Server {
 // SetCA configures the CA certificate used for MITM TLS interception.
 func (s *Server) SetCA(ca *tls.Certificate) {
 	s.ca = ca
+}
+
+// SetHealthState attaches a health/identity endpoint served on non-proxy requests
+// (e.g. GET /__phoenix/health). The shim uses it to verify the proxy's identity.
+func (s *Server) SetHealthState(h *HealthState) {
+	s.health = h
 }
 
 // handlerConfigurator is an optional function applied to the handler after creation.
@@ -64,6 +71,10 @@ func (s *Server) StartWithContext(ctx context.Context) error {
 	gp := goproxy.NewProxyHttpServer()
 	gp.Verbose = s.cfg.Verbose
 	s.proxy = gp
+
+	if s.health != nil {
+		gp.NonproxyHandler = s.health.Handler()
+	}
 
 	// Configure MITM if CA is available
 	if s.ca != nil {
@@ -111,7 +122,7 @@ func (s *Server) StartWithContext(ctx context.Context) error {
 		_ = s.httpSrv.Shutdown(shutdownCtx)
 	}()
 
-	log.Printf("Phoenix Firewall proxy listening on %s", addr)
+	log.Printf("Phoenix Security Blue Shield - Firewall proxy listening on %s", addr)
 	if err := s.httpSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		return err
 	}
