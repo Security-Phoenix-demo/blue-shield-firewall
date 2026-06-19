@@ -83,6 +83,9 @@ func runEnroll(apiKey, apiURL, tenantID, deviceID, bootstrap string) error {
 	if err := os.WriteFile(tomlPath, []byte(existing), 0600); err != nil {
 		return fmt.Errorf("write agent.toml: %w", err)
 	}
+	// Explicitly chmod to 0600 — WriteFile perm only applies on O_CREATE;
+	// a pre-existing file retains its original permissions.
+	_ = os.Chmod(tomlPath, 0600)
 	fmt.Printf("[phoenix-firewall] enrolled: config written to %s\n", tomlPath)
 	fmt.Println("[phoenix-firewall] you're good to go — shims will evaluate packages via Phoenix.")
 	return nil

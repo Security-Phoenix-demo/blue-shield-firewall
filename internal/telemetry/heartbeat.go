@@ -4,10 +4,15 @@ package telemetry
 import (
 	"bytes"
 	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
+	"os"
 	"time"
+
+	"github.com/Security-Phoenix-demo/phoenix-firewall/internal/version"
 )
 
 // HeartbeatSender sends periodic heartbeat payloads to /api/v1/firewall/agent/heartbeat.
@@ -63,7 +68,7 @@ func (h *HeartbeatSender) send() error {
 	payload := map[string]interface{}{
 		"tenant_id":     h.tenantID,
 		"device_id":     h.deviceID,
-		"agent_version": "0.1.0",
+		"agent_version": version.Agent,
 		"ts":            time.Now().UTC().Format(time.RFC3339),
 		"proxy_health":  "running",
 		"integrity": map[string]string{
@@ -90,11 +95,24 @@ func (h *HeartbeatSender) send() error {
 		return fmt.Errorf("heartbeat send: %w", err)
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return fmt.Errorf("heartbeat returned %d", resp.StatusCode)
+	}
 	return nil
 }
 
 func fileHash(path string) string {
-	data := []byte(path) // stub: real implementation reads the file
-	sum := sha256.Sum256(data)
-	return fmt.Sprintf("%x", sum)
+	f, err := os.Open(path)
+	if err != nil {
+		// File absent or unreadable — return hash of the path string as a sentinel.
+		sum := sha256.Sum256([]byte(path))
+		return hex.EncodeToString(sum[:])
+	}
+	defer f.Close()
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		sum := sha256.Sum256([]byte(path))
+		return hex.EncodeToString(sum[:])
+	}
+	return hex.EncodeToString(h.Sum(nil))
 }
