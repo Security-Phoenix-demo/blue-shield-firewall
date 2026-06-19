@@ -76,6 +76,7 @@ var proxyCmd = &cobra.Command{
 
 		// Configure the handler with new features after server creation
 		srv.ConfigureHandler(func(h *proxy.RequestHandler) {
+			h.SetFailMode(cfg.FailMode)
 			if cfg.StrictMode {
 				h.SetStrictMode(true)
 			}

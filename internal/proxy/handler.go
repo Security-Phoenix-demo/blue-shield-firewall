@@ -28,6 +28,7 @@ type RequestHandler struct {
 	strictMode   bool
 	reporter     *Reporter
 	fallbackFeed *FallbackFeed
+	failMode     string
 }
 
 // NewRequestHandler creates a handler with the given matcher and firewall client.
@@ -57,6 +58,12 @@ func (h *RequestHandler) SetStrictMode(strict bool) {
 // SetFallbackFeed sets a local fallback feed for offline checking.
 func (h *RequestHandler) SetFallbackFeed(feed *FallbackFeed) {
 	h.fallbackFeed = feed
+}
+
+// SetFailMode controls behavior when the firewall API cannot be reached.
+// "closed" blocks the install; anything else (default) fails open.
+func (h *RequestHandler) SetFailMode(mode string) {
+	h.failMode = mode
 }
 
 // HandleRequest inspects an HTTP request. If it matches a registry URL, the package
@@ -124,8 +131,14 @@ func (h *RequestHandler) HandleRequest(req *http.Request, ctx *goproxy.ProxyCtx)
 		var apiErr error
 		result, apiErr = h.client.Check(ref.Ecosystem, ref.Name, ref.Version)
 		if apiErr != nil {
-			log.Printf("[handler] firewall API error for %s/%s@%s: %v", ref.Ecosystem, ref.Name, ref.Version, apiErr)
-			// Fail open by default — allow the request
+			pkgLabel := fmt.Sprintf("%s/%s@%s", ref.Ecosystem, ref.Name, ref.Version)
+			log.Printf("[phoenix-firewall] backend unreachable for %s: %v", pkgLabel, apiErr)
+			if h.failMode == "closed" {
+				reason := "Phoenix backend unreachable and fail_mode=closed — blocking"
+				log.Printf("[BLOCKED] %s — %s", pkgLabel, reason)
+				return req, blockResponse(req, pkgLabel, reason)
+			}
+			log.Printf("[phoenix-firewall] fail_mode=open — allowing %s without scan", pkgLabel)
 			return req, nil
 		}
 	}
