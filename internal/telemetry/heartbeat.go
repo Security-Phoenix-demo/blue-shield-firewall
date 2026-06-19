@@ -17,6 +17,8 @@ type HeartbeatSender struct {
 	tenantID string
 	deviceID string
 	stopCh   chan struct{}
+	// OnResult, if set, is invoked after each send with whether it succeeded.
+	OnResult func(ok bool)
 }
 
 func NewHeartbeatSender(apiURL, apiKey, tenantID, deviceID string) *HeartbeatSender {
@@ -36,6 +38,9 @@ func (h *HeartbeatSender) Start(interval time.Duration) {
 func (h *HeartbeatSender) Stop() { close(h.stopCh) }
 
 func (h *HeartbeatSender) loop(interval time.Duration) {
+	// Immediate send so readiness is known at startup, not one interval later.
+	h.report(h.send())
+
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 	for {
@@ -43,8 +48,14 @@ func (h *HeartbeatSender) loop(interval time.Duration) {
 		case <-h.stopCh:
 			return
 		case <-ticker.C:
-			_ = h.send()
+			h.report(h.send())
 		}
+	}
+}
+
+func (h *HeartbeatSender) report(err error) {
+	if h.OnResult != nil {
+		h.OnResult(err == nil)
 	}
 }
 

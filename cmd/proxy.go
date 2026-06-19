@@ -8,10 +8,13 @@ import (
 	"os/signal"
 	"path/filepath"
 	"syscall"
+	"time"
 
 	"github.com/Security-Phoenix-demo/phoenix-firewall/internal/config"
 	"github.com/Security-Phoenix-demo/phoenix-firewall/internal/proxy"
+	"github.com/Security-Phoenix-demo/phoenix-firewall/internal/telemetry"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 var proxyCmd = &cobra.Command{
@@ -73,6 +76,26 @@ var proxyCmd = &cobra.Command{
 
 		srv := proxy.NewServer(cfg)
 		srv.SetCA(ca)
+
+		// Identity/health endpoint for the shim handshake.
+		hs := proxy.NewHealthState(version, cfg.Port, cfg.FailMode)
+		srv.SetHealthState(hs)
+
+		// Readiness: drive backend reachability from heartbeat results and warn
+		// clearly when the Phoenix backend cannot be reached.
+		tenantID := viper.GetString("tenant_id")
+		deviceID := viper.GetString("device_id")
+		hb := telemetry.NewHeartbeatSender(cfg.APIUrl, cfg.APIKey, tenantID, deviceID)
+		hb.OnResult = func(ok bool) {
+			hs.SetBackendReachable(ok)
+			if !ok {
+				log.Printf("[phoenix-firewall] WARNING: cannot reach Phoenix backend at %s — operating in fail_mode=%s", cfg.APIUrl, cfg.FailMode)
+			}
+		}
+		hb.Start(5 * time.Minute)
+		defer hb.Stop()
+
+		fmt.Printf("[phoenix-firewall] fail_mode=%s; health endpoint at http://127.0.0.1:%d%s\n", cfg.FailMode, cfg.Port, proxy.HealthPath)
 
 		// Configure the handler with new features after server creation
 		srv.ConfigureHandler(func(h *proxy.RequestHandler) {
