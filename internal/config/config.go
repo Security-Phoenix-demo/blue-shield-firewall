@@ -30,6 +30,10 @@ type Config struct {
 	// GitLabHosts is a list of GitLab instance hostnames whose package registries
 	// should be intercepted (e.g. "gitlab.example.com"). gitlab.com is always included.
 	GitLabHosts []string
+	// FailMode controls behavior when the Phoenix backend cannot be reached:
+	// "open" allows installs (default), "closed" blocks them. Sourced from
+	// agent.toml [fail_mode] mode or env PHOENIX_FAIL_MODE.
+	FailMode string
 }
 
 // Load reads configuration from viper (flags + env vars) and returns a Config.
@@ -46,5 +50,14 @@ func Load() *Config {
 		ReportPath:      viper.GetString("report_path"),
 		ExtraRegistries: viper.GetStringSlice("extra_registries"),
 		GitLabHosts:     viper.GetStringSlice("gitlab_hosts"),
+		FailMode:        failModeOrDefault(viper.GetString("fail_mode.mode")),
 	}
+}
+
+// failModeOrDefault normalizes an empty/unknown fail mode to the shipped default "open".
+func failModeOrDefault(mode string) string {
+	if mode == "closed" {
+		return "closed"
+	}
+	return "open"
 }
