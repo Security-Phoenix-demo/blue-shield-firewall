@@ -14,12 +14,13 @@ func UserShimDir() string {
 	return filepath.Join(home, ".local", "bin")
 }
 
-func InstallPATH() error {
+// InstallPATH installs shims to ~/.local/bin. failMode is baked into each shim.
+func InstallPATH(failMode string) error {
 	shimDir := UserShimDir()
 	if err := os.MkdirAll(shimDir, 0755); err != nil {
 		return fmt.Errorf("create shim dir: %w", err)
 	}
-	g := &Generator{OutputDir: shimDir}
+	g := &Generator{OutputDir: shimDir, FailMode: failMode}
 	if err := g.Generate(); err != nil {
 		return err
 	}

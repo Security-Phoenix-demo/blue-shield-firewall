@@ -67,7 +67,10 @@ if "%%_PROXY_UP%%"=="1" (
 exit /b %%ERRORLEVEL%%
 `
 
-func InstallPATH() error {
+// InstallPATH installs batch shims to %APPDATA%\PhoenixFirewall\shims.
+// failMode accepted for API consistency; Windows batch shim uses PHOENIX_FAIL_MODE at runtime.
+func InstallPATH(failMode string) error {
+	_ = failMode
 	shimDir := UserShimDir()
 	if err := os.MkdirAll(shimDir, 0755); err != nil {
 		return fmt.Errorf("create shim dir: %w", err)
