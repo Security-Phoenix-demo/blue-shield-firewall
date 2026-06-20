@@ -2,11 +2,11 @@
 
 > Version: v0.2.0
 > Audience: end users on macOS / Windows / Linux installing `phoenix-firewall` from a public GitHub release.
-> Binaries are not yet code-signed — see §5 for what that means and how to work around the OS gatekeepers.
+> Status: **binaries are not yet code-signed** — see §5 for what that means and how to work around the OS gatekeepers.
 
 ---
 
-## 1. One-line installers
+## 1. TL;DR — one-line installers
 
 ### macOS / Linux
 
@@ -49,12 +49,14 @@ Both scripts:
 | Linux | ARM64 | `phoenix-firewall_0.2.0_linux_arm64.tar.gz` |
 | Windows 10 / 11 | x86_64 | `phoenix-firewall_0.2.0_windows_amd64.zip` |
 
+Every asset is paired with a SHA-256 in `checksums.txt` and a Syft SBOM in `*.sbom.json`.
+
 All assets are available at:
 **[github.com/Security-Phoenix-demo/blue-shield-firewall/releases/tag/v0.2.0](https://github.com/Security-Phoenix-demo/blue-shield-firewall/releases/tag/v0.2.0)**
 
 ---
 
-## 3. Manual install
+## 3. Manual install (no script)
 
 ### macOS / Linux
 
@@ -155,6 +157,8 @@ codesign --force --sign - $(which phoenix-firewall)
 If you opened the binary via Finder before clearing quarantine, also go to:
 **System Settings → Privacy & Security → scroll down → "Open Anyway"**
 
+> Apple notarization is the proper long-term fix. Until the team has an Apple Developer ID + notary submission flow, all macOS users will need these two commands.
+
 ### 5.2 Windows
 
 **Symptom**: SmartScreen popup — _"Windows protected your PC — Microsoft Defender SmartScreen prevented an unrecognized app from starting"_.
@@ -168,6 +172,8 @@ Unblock-File "$env:LOCALAPPDATA\Programs\phoenix-firewall\phoenix-firewall.exe"
 ```
 
 On the SmartScreen popup: click **More info → Run anyway**. Subsequent launches will not prompt.
+
+For unattended scenarios (e.g. CI runners, MDM rollouts) you can exempt the binary path from SmartScreen via Group Policy or registry, but that's an admin-side action — see `PUB-Shield-Endpoint/docs/` for the MDM recipe.
 
 ### 5.3 Linux
 
@@ -272,6 +278,12 @@ slsa-verifier verify-artifact \
   --source-tag v0.2.0 \
   phoenix-firewall_0.2.0_linux_amd64.tar.gz
 # Expected: PASSED: SLSA verification passed
+```
+
+### SBOM inspection
+
+```bash
+jq '.components[] | {name, version, purl}' phoenix-firewall_*_$(uname -s | tr '[:upper:]' '[:lower:]')_amd64.sbom.json | head
 ```
 
 ---

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/Security-Phoenix-demo/blue-shield-firewall/internal/integrity"
+	"github.com/Security-Phoenix-demo/blue-shield-firewall/internal/version"
 )
 
 // httpClient carries an explicit timeout so a black-holed network can't hang
@@ -24,6 +25,8 @@ type HeartbeatSender struct {
 	tenantID string
 	deviceID string
 	stopCh   chan struct{}
+	// OnResult, if set, is invoked after each send with whether it succeeded.
+	OnResult func(ok bool)
 }
 
 func NewHeartbeatSender(apiURL, apiKey, tenantID, deviceID string) *HeartbeatSender {
@@ -43,6 +46,9 @@ func (h *HeartbeatSender) Start(interval time.Duration) {
 func (h *HeartbeatSender) Stop() { close(h.stopCh) }
 
 func (h *HeartbeatSender) loop(interval time.Duration) {
+	// Immediate send so readiness is known at startup, not one interval later.
+	h.report(h.send())
+
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 	for {
@@ -50,8 +56,14 @@ func (h *HeartbeatSender) loop(interval time.Duration) {
 		case <-h.stopCh:
 			return
 		case <-ticker.C:
-			_ = h.send()
+			h.report(h.send())
 		}
+	}
+}
+
+func (h *HeartbeatSender) report(err error) {
+	if h.OnResult != nil {
+		h.OnResult(err == nil)
 	}
 }
 
@@ -59,7 +71,7 @@ func (h *HeartbeatSender) send() error {
 	payload := map[string]interface{}{
 		"tenant_id":     h.tenantID,
 		"device_id":     h.deviceID,
-		"agent_version": "0.1.0",
+		"agent_version": version.Agent,
 		"ts":            time.Now().UTC().Format(time.RFC3339),
 		"proxy_health":  "running",
 		"collector_capabilities": []string{
@@ -98,6 +110,9 @@ func (h *HeartbeatSender) send() error {
 		return fmt.Errorf("heartbeat send: %w", err)
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return fmt.Errorf("heartbeat returned %d", resp.StatusCode)
+	}
 	return nil
 }
 
