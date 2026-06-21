@@ -3,4 +3,4 @@ package version
 
 // Agent is the phoenix-firewall agent version. Overridden by goreleaser ldflags
 // on release builds via cmd.version; this constant is the library default.
-const Agent = "0.4.0"
+var Agent = "0.4.0"

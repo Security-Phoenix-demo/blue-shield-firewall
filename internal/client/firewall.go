@@ -260,9 +260,12 @@ func (c *Client) Enroll(deviceID, bootstrapToken string, metadata map[string]str
 	}
 	defer resp.Body.Close()
 
-	data, err := io.ReadAll(resp.Body)
+	data, err := io.ReadAll(io.LimitReader(resp.Body, maxRespBytes))
 	if err != nil {
 		return nil, fmt.Errorf("read enroll response: %w", err)
+	}
+	if int64(len(data)) >= maxRespBytes {
+		return nil, fmt.Errorf("enroll response too large (exceeded %d bytes)", maxRespBytes)
 	}
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		return nil, fmt.Errorf("enroll returned %d: %s", resp.StatusCode, string(data))

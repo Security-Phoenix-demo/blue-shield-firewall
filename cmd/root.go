@@ -69,7 +69,11 @@ func initConfig() {
 	viper.SetConfigType("toml")
 	if home, err := os.UserHomeDir(); err == nil {
 		viper.SetConfigFile(filepath.Join(home, ".config", "phoenix-firewall", "agent.toml"))
-		_ = viper.ReadInConfig() // best-effort; absence is fine
+		if err := viper.ReadInConfig(); err != nil {
+			if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
+				fmt.Fprintf(os.Stderr, "[phoenix-firewall] WARNING: failed to read config file: %v\n", err)
+			}
+		}
 	}
 
 	// Allow PHOENIX_FAIL_MODE to override the nested [fail_mode] mode key,

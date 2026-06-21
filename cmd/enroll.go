@@ -96,18 +96,22 @@ func runEnrollWithOptions(opts enrollOptions) error {
 
 	// Register with the backend (best-effort). On comms failure we keep local
 	// config so the user is not blocked, but we tell them clearly.
-	c := client.New(opts.APIURL, opts.APIKey)
-	if resp, err := c.Enroll(opts.DeviceID, opts.BootstrapToken, enrollMetadata()); err != nil {
-		fmt.Fprintf(os.Stderr, "[phoenix-firewall] WARNING: backend enrollment failed: %v\n", err)
-		fmt.Fprintln(os.Stderr, "[phoenix-firewall] continuing with local config; re-run 'phoenix-firewall enroll' once connectivity is restored")
-	} else {
-		if resp.APIKey != "" {
-			opts.APIKey = resp.APIKey // backend issued an agent key — persist that
+	// Skip if a bootstrap token was provided — EnrollDevice() above already
+	// performed the backend registration; a second POST would fail one-time tokens.
+	if opts.BootstrapToken == "" {
+		c := client.New(opts.APIURL, opts.APIKey)
+		if resp, err := c.Enroll(opts.DeviceID, opts.BootstrapToken, enrollMetadata()); err != nil {
+			fmt.Fprintf(os.Stderr, "[phoenix-firewall] WARNING: backend enrollment failed: %v\n", err)
+			fmt.Fprintln(os.Stderr, "[phoenix-firewall] continuing with local config; re-run 'phoenix-firewall enroll' once connectivity is restored")
+		} else {
+			if resp.APIKey != "" {
+				opts.APIKey = resp.APIKey // backend issued an agent key — persist that
+			}
+			if resp.DeviceID != "" {
+				opts.DeviceID = resp.DeviceID
+			}
+			fmt.Printf("[phoenix-firewall] registered device %s with backend\n", opts.DeviceID)
 		}
-		if resp.DeviceID != "" {
-			opts.DeviceID = resp.DeviceID
-		}
-		fmt.Printf("[phoenix-firewall] registered device %s with backend\n", opts.DeviceID)
 	}
 
 	home, err := os.UserHomeDir()

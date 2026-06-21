@@ -164,8 +164,9 @@ func (h *RequestHandler) HandleRequest(req *http.Request, ctx *goproxy.ProxyCtx)
 				return req, blockResponse(req, pkgLabel, reason)
 			}
 			if h.failMode == "closed" {
-				reason := "Phoenix backend unreachable and fail_mode=closed — blocking"
+				reason := fmt.Sprintf("fail-closed: Phoenix backend unreachable (fail_mode=closed): %v", apiErr)
 				log.Printf("[BLOCKED] %s — %s", pkgLabel, reason)
+				h.recordResult(ref, StrictBlock(reason))
 				return req, blockResponse(req, pkgLabel, reason)
 			}
 			log.Printf("[phoenix-firewall] fail_mode=open — allowing %s without scan", pkgLabel)

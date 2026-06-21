@@ -14,7 +14,7 @@ Versions follow [Semantic Versioning](https://semver.org/).
 - **Proxy identity/health endpoint** (`internal/proxy/health.go`): proxy now serves
   `GET /__phoenix/health` via `goproxy.NonproxyHandler`, returning a JSON body with
   the identity marker `"service":"phoenix-firewall"`, version, port, fail_mode, and
-  backend reachability status. Shims use this to cryptographically confirm they are
+  backend reachability status. Shims use this to confirm (via identity marker) they are
   talking to a genuine Phoenix proxy, not an arbitrary process on the port.
 
 - **HTTP identity handshake in shims** (`internal/shim/generator.go`): replaces the
