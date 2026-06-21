@@ -35,6 +35,7 @@ type RequestHandler struct {
 	reporter     *Reporter
 	fallbackFeed *FallbackFeed
 	policyGate   StalenessChecker
+	failMode     string
 }
 
 // NewRequestHandler creates a handler with the given matcher and firewall client.
@@ -70,6 +71,12 @@ func (h *RequestHandler) SetFallbackFeed(feed *FallbackFeed) {
 // stale, registry requests are blocked (fail-closed) before any verdict lookup.
 func (h *RequestHandler) SetPolicyGate(c StalenessChecker) {
 	h.policyGate = c
+}
+
+// SetFailMode controls behavior when the firewall API cannot be reached.
+// "closed" blocks the install; anything else (default) fails open.
+func (h *RequestHandler) SetFailMode(mode string) {
+	h.failMode = mode
 }
 
 // HandleRequest inspects an HTTP request. If it matches a registry URL, the package
@@ -146,8 +153,8 @@ func (h *RequestHandler) HandleRequest(req *http.Request, ctx *goproxy.ProxyCtx)
 		var apiErr error
 		result, apiErr = h.client.Check(ref.Ecosystem, ref.Name, ref.Version)
 		if apiErr != nil {
-			log.Printf("[handler] firewall API error for %s/%s@%s: %v", ref.Ecosystem, ref.Name, ref.Version, apiErr)
 			pkgLabel := fmt.Sprintf("%s/%s@%s", ref.Ecosystem, ref.Name, ref.Version)
+			log.Printf("[handler] firewall API error for %s/%s@%s: %v", ref.Ecosystem, ref.Name, ref.Version, apiErr)
 			if h.strictMode {
 				// Fail closed in strict mode: block when the verdict cannot be obtained.
 				reason := fmt.Sprintf("fail-closed: firewall API unreachable (strict mode): %v", apiErr)
@@ -156,7 +163,13 @@ func (h *RequestHandler) HandleRequest(req *http.Request, ctx *goproxy.ProxyCtx)
 				// Deliberately NOT cached: a transient outage must not pin a block for the cache TTL.
 				return req, blockResponse(req, pkgLabel, reason)
 			}
-			// Fail open by default — allow the request (transient, not cached).
+			if h.failMode == "closed" {
+				reason := fmt.Sprintf("fail-closed: Phoenix backend unreachable (fail_mode=closed): %v", apiErr)
+				log.Printf("[BLOCKED] %s — %s", pkgLabel, reason)
+				h.recordResult(ref, StrictBlock(reason))
+				return req, blockResponse(req, pkgLabel, reason)
+			}
+			log.Printf("[phoenix-firewall] fail_mode=open — allowing %s without scan", pkgLabel)
 			return req, nil
 		}
 	}

@@ -38,6 +38,10 @@ type Config struct {
 	// downloaded firewall policy is staler than the hard threshold (R-FUNC-073).
 	// Default false: enabling it requires a reachable policy endpoint.
 	EnforcePolicyFreshness bool
+	// FailMode controls behavior when the Phoenix backend cannot be reached:
+	// "open" allows installs (default), "closed" blocks them. Sourced from
+	// agent.toml [fail_mode] mode or env PHOENIX_FAIL_MODE.
+	FailMode string
 }
 
 // Load reads configuration from viper (flags + env vars) and returns a Config.
@@ -58,5 +62,14 @@ func Load() *Config {
 		GitLabHosts:     viper.GetStringSlice("gitlab_hosts"),
 
 		EnforcePolicyFreshness: viper.GetBool("enforce_policy_freshness"),
+		FailMode:               failModeOrDefault(viper.GetString("fail_mode.mode")),
 	}
+}
+
+// failModeOrDefault normalizes an empty/unknown fail mode to the shipped default "open".
+func failModeOrDefault(mode string) string {
+	if mode == "closed" {
+		return "closed"
+	}
+	return "open"
 }

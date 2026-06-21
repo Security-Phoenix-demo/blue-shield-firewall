@@ -9,6 +9,7 @@ import (
 	"github.com/Security-Phoenix-demo/blue-shield-firewall/internal/proxy"
 	"github.com/Security-Phoenix-demo/blue-shield-firewall/internal/shim"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 var initCmd = &cobra.Command{
@@ -106,9 +107,9 @@ mode = "open"
 	}
 	fmt.Printf("[phoenix-firewall] created %s\n", bridgePath)
 
-	// Install PATH shims
+	// Install PATH shims — bake the configured fail_mode into each shim script
 	fmt.Println("[phoenix-firewall] installing package manager shims...")
-	if err := shim.InstallPATH(); err != nil {
+	if err := shim.InstallPATH(readFailMode(cfgDir)); err != nil {
 		return fmt.Errorf("install shims: %w", err)
 	}
 
@@ -127,6 +128,15 @@ mode = "open"
 	fmt.Println("  Claude Code : npx @phoenix-security/cli install-hooks claude-code")
 	fmt.Println("  Cursor      : add to .cursor/mcp.json (see phxintel.security/docs)")
 	return nil
+}
+
+// readFailMode returns the fail_mode.mode from agent.toml via viper (already
+// loaded by initConfig), defaulting to "open" for any value other than "closed".
+func readFailMode(_ string) string {
+	if viper.GetString("fail_mode.mode") == "closed" {
+		return "closed"
+	}
+	return "open"
 }
 
 func init() {
