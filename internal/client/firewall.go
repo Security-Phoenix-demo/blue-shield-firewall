@@ -53,6 +53,9 @@ func New(baseURL, apiKey string) *Client {
 // WithTenantID returns a copy of the client with the given tenant ID attached.
 // Package checks will include the tenant_id so the backend applies org-scoped policy.
 func (c *Client) WithTenantID(tenantID string) *Client {
+	if c == nil {
+		return nil
+	}
 	clone := *c
 	clone.tenantID = tenantID
 	return &clone

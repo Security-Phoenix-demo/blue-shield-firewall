@@ -82,10 +82,10 @@ func loadConfigWithAgentTOML() *config.Config {
 	if cfg.TeamID == "" {
 		cfg.TeamID = lv.GetString("team_id")
 	}
-	if !cfg.StrictMode {
+	if !viper.IsSet("strict_mode") {
 		cfg.StrictMode = lv.GetBool("strict_mode")
 	}
-	if !cfg.EnforcePolicyFreshness {
+	if !viper.IsSet("enforce_policy_freshness") {
 		cfg.EnforcePolicyFreshness = lv.GetBool("enforce_policy_freshness")
 	}
 	if cfg.FallbackFeed == "" {

@@ -15,7 +15,7 @@ type Config struct {
 	// TeamID is an optional collector-side hint for display/reconciliation only.
 	TeamID string
 	// TenantID links this agent to a Phoenix organization. Populated from enrollment
-	// (agent.toml) or PHOENIX_TENANT_ID env var. Required for org-scoped policy evaluation.
+	// (agent.toml) or PHOENIX_TENANT_ID env var. Optional; omitted when empty (global policy).
 	TenantID string
 	// Port is the local port the proxy listens on.
 	Port int

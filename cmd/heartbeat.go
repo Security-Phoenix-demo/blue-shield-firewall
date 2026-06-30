@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/Security-Phoenix-demo/blue-shield-firewall/internal/config"
@@ -12,7 +13,7 @@ import (
 )
 
 func startEndpointHeartbeat(cfg *config.Config) func() {
-	if cfg.APIKey == "" {
+	if cfg == nil || cfg.APIKey == "" {
 		return func() {}
 	}
 
@@ -27,16 +28,19 @@ func startEndpointHeartbeat(cfg *config.Config) func() {
 	interval := 300 * time.Second
 	if raw := os.Getenv("PHOENIX_HEARTBEAT_INTERVAL_SECONDS"); raw != "" {
 		if seconds, err := strconv.Atoi(raw); err == nil && seconds > 0 {
+			if seconds < 10 {
+				seconds = 10
+			}
 			interval = time.Duration(seconds) * time.Second
 		}
 	}
 
-	tenantID := cfg.TenantID
-	if tenantID == "" {
-		tenantID = os.Getenv("PHOENIX_TENANT_ID") // legacy fallback
-	}
-	sender := telemetry.NewHeartbeatSender(cfg.APIUrl, cfg.APIKey, tenantID, deviceID)
+	sender := telemetry.NewHeartbeatSender(cfg.APIUrl, cfg.APIKey, cfg.TenantID, deviceID)
 	sender.Start(interval)
 	log.Printf("[phoenix-firewall] endpoint heartbeat enabled for device %s every %s", deviceID, interval)
-	return sender.Stop
+
+	var once sync.Once
+	return func() {
+		once.Do(sender.Stop)
+	}
 }
