@@ -83,6 +83,9 @@ func (s *Server) StartWithContext(ctx context.Context) error {
 		matcher = registry.NewCompositeMatchers()
 	}
 	fwClient := client.New(s.cfg.APIUrl, s.cfg.APIKey)
+	if s.cfg.TenantID != "" {
+		fwClient = fwClient.WithTenantID(s.cfg.TenantID)
+	}
 	s.handler = NewRequestHandler(matcher, fwClient, s.cfg.Verbose)
 	cache := NewResultCache(defaultCacheSize, defaultCacheTTL)
 	s.handler.SetCache(cache)

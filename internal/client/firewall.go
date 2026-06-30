@@ -35,6 +35,7 @@ var maxRespBytes int64 = 16 << 20 // 16 MiB
 type Client struct {
 	baseURL    string
 	apiKey     string
+	tenantID   string
 	httpClient *http.Client
 }
 
@@ -49,9 +50,20 @@ func New(baseURL, apiKey string) *Client {
 	}
 }
 
+// WithTenantID returns a copy of the client with the given tenant ID attached.
+// Package checks will include the tenant_id so the backend applies org-scoped policy.
+func (c *Client) WithTenantID(tenantID string) *Client {
+	clone := *c
+	clone.tenantID = tenantID
+	return &clone
+}
+
 // evaluateRequest is the JSON body sent to the firewall evaluate endpoint.
 type evaluateRequest struct {
 	Packages []packageEntry `json:"packages"`
+	// TenantID links this check to a Phoenix organization so the backend applies
+	// org-scoped allow/block rules. Omitted when empty (anonymous/global policy).
+	TenantID string `json:"tenant_id,omitempty"`
 }
 
 type packageEntry struct {
@@ -142,6 +154,7 @@ func (c *Client) Check(ecosystem, name, version string) (*CheckResult, error) {
 				Version:   version,
 			},
 		},
+		TenantID: c.tenantID,
 	}
 
 	jsonBody, err := json.Marshal(reqBody)
