@@ -9,12 +9,10 @@ import (
 	"path/filepath"
 	"syscall"
 
-	"github.com/Security-Phoenix-demo/blue-shield-firewall/internal/config"
 	"github.com/Security-Phoenix-demo/blue-shield-firewall/internal/policy"
 	"github.com/Security-Phoenix-demo/blue-shield-firewall/internal/proxy"
 	"github.com/Security-Phoenix-demo/blue-shield-firewall/internal/service"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 var systemCmd = &cobra.Command{
@@ -87,36 +85,7 @@ func runSystemMode() error {
 	}
 	cfgDir := filepath.Join(home, ".config", "phoenix-firewall")
 
-	// Supplement viper with values from agent.toml (CLI flags and PHOENIX_* env vars
-	// take precedence over toml, so we read toml into a local viper instance and
-	// back-fill only the fields that weren't already set via flags/env).
-	localViper := viper.New()
-	localViper.SetConfigFile(filepath.Join(cfgDir, "agent.toml"))
-	localViper.SetConfigType("toml")
-	_ = localViper.ReadInConfig()
-
-	cfg := config.Load()
-	if cfg.APIKey == "" {
-		cfg.APIKey = localViper.GetString("api_key")
-	}
-	// root.go defaults api-url to http://localhost:8000 (dev); prefer agent.toml value
-	if cfg.APIUrl == "http://localhost:8000" {
-		if u := localViper.GetString("api_url"); u != "" {
-			cfg.APIUrl = u
-		}
-	}
-	// The service unit runs `phoenix-firewall system` with no flags, so these
-	// security settings are reachable only via env or agent.toml. Back-fill from
-	// agent.toml when not already set by flag/env (which take precedence).
-	if !cfg.StrictMode {
-		cfg.StrictMode = localViper.GetBool("strict_mode")
-	}
-	if !cfg.EnforcePolicyFreshness {
-		cfg.EnforcePolicyFreshness = localViper.GetBool("enforce_policy_freshness")
-	}
-	if cfg.FallbackFeed == "" {
-		cfg.FallbackFeed = localViper.GetString("fallback_feed")
-	}
+	cfg := loadConfigWithAgentTOML()
 
 	log.Printf("[phoenix-firewall] starting userland proxy on 127.0.0.1:%d", cfg.Port)
 	if cfg.StrictMode {
@@ -149,6 +118,9 @@ func runSystemMode() error {
 		defer policySyncer.Stop()
 		log.Println("[phoenix-firewall] policy freshness enforcement: ON (blocks installs when policy stale > 24h)")
 	}
+
+	stopHeartbeat := startEndpointHeartbeat(cfg)
+	defer stopHeartbeat()
 
 	srv := proxy.NewServer(cfg)
 	srv.SetCA(ca)

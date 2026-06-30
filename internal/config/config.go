@@ -14,6 +14,9 @@ type Config struct {
 	DeviceID string
 	// TeamID is an optional collector-side hint for display/reconciliation only.
 	TeamID string
+	// TenantID links this agent to a Phoenix organization. Populated from enrollment
+	// (agent.toml) or PHOENIX_TENANT_ID env var. Optional; omitted when empty (global policy).
+	TenantID string
 	// Port is the local port the proxy listens on.
 	Port int
 	// Verbose enables debug-level logging.
@@ -51,6 +54,7 @@ func Load() *Config {
 		APIKey:          viper.GetString("api_key"),
 		DeviceID:        viper.GetString("device_id"),
 		TeamID:          viper.GetString("team_id"),
+		TenantID:        viper.GetString("tenant_id"),
 		Port:            viper.GetInt("port"),
 		Verbose:         viper.GetBool("verbose"),
 		LogFormat:       viper.GetString("log_format"),

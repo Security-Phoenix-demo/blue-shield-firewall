@@ -10,7 +10,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/Security-Phoenix-demo/blue-shield-firewall/internal/config"
 	"github.com/Security-Phoenix-demo/blue-shield-firewall/internal/policy"
 	"github.com/Security-Phoenix-demo/blue-shield-firewall/internal/proxy"
 	"github.com/Security-Phoenix-demo/blue-shield-firewall/internal/telemetry"
@@ -24,7 +23,7 @@ var proxyCmd = &cobra.Command{
 	Long:  `Start an HTTP proxy that intercepts package manager requests and checks them against the Phoenix firewall API.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		warnIfAPIKeyFlag(cmd)
-		cfg := config.Load()
+		cfg := loadConfigWithAgentTOML()
 
 		// Resolve CA directory
 		caDir, _ := cmd.Flags().GetString("ca-dir")
@@ -34,20 +33,22 @@ var proxyCmd = &cobra.Command{
 
 		trust, _ := cmd.Flags().GetBool("trust")
 
-		// Ensure CA exists
-		fmt.Printf("CA directory: %s\n", caDir)
+		// Ensure CA exists. All human-readable output goes to STDERR so that
+		// stdout stays clean and the quick-start flow (`eval "$(phoenix-firewall
+		// env)"`) is never corrupted by log lines.
+		fmt.Fprintf(os.Stderr, "CA directory: %s\n", caDir)
 		ca, err := proxy.EnsureCA(caDir)
 		if err != nil {
 			return fmt.Errorf("ensure CA: %w", err)
 		}
-		fmt.Println("CA certificate ready.")
+		fmt.Fprintln(os.Stderr, "CA certificate ready.")
 
 		// Optionally inject into system trust store
 		if trust {
 			certPath := filepath.Join(caDir, "phoenix-ca.crt")
 			if err := proxy.InjectCA(certPath); err != nil {
-				fmt.Printf("Warning: auto trust injection failed: %v\n", err)
-				fmt.Println("The proxy will still work if you configure your package manager to trust the CA manually.")
+				fmt.Fprintf(os.Stderr, "Warning: auto trust injection failed: %v\n", err)
+				fmt.Fprintln(os.Stderr, "The proxy will still work if you configure your package manager to trust the CA manually.")
 			}
 		}
 
@@ -68,12 +69,13 @@ var proxyCmd = &cobra.Command{
 			reporter = proxy.NewReporter()
 		}
 
-		fmt.Printf("Starting proxy on :%d\n", cfg.Port)
+		fmt.Fprintf(os.Stderr, "Starting proxy on :%d\n", cfg.Port)
+		fmt.Fprintf(os.Stderr, "To route this shell through it, run:  eval \"$(phoenix-firewall env)\"\n")
 		if cfg.StrictMode {
-			fmt.Println("Strict mode: warn actions will be treated as block")
+			fmt.Fprintln(os.Stderr, "Strict mode: warn actions will be treated as block")
 		}
 		if cfg.CIMode {
-			fmt.Println("CI mode: will exit with code 1 if any packages blocked")
+			fmt.Fprintln(os.Stderr, "CI mode: will exit with code 1 if any packages blocked")
 		}
 
 		// Optionally enforce policy freshness (fail-closed when policy is stale).
@@ -82,8 +84,11 @@ var proxyCmd = &cobra.Command{
 			policySyncer = policy.NewSyncer(cfg.APIUrl, cfg.APIKey)
 			policySyncer.Start()
 			defer policySyncer.Stop()
-			fmt.Println("Policy freshness enforcement: ON (blocks installs when policy stale > 24h)")
+			fmt.Fprintln(os.Stderr, "Policy freshness enforcement: ON (blocks installs when policy stale > 24h)")
 		}
+
+		stopHeartbeat := startEndpointHeartbeat(cfg)
+		defer stopHeartbeat()
 
 		srv := proxy.NewServer(cfg)
 		srv.SetCA(ca)
@@ -140,7 +145,7 @@ var proxyCmd = &cobra.Command{
 		// Print summary if reporter exists
 		if reporter != nil {
 			summary := reporter.Summary()
-			fmt.Printf("\nScan Summary: %d total, %d blocked, %d warned, %d allowed\n",
+			fmt.Fprintf(os.Stderr, "\nScan Summary: %d total, %d blocked, %d warned, %d allowed\n",
 				summary.TotalPackages, summary.Blocked, summary.Warned, summary.Allowed)
 		}
 

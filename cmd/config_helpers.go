@@ -43,13 +43,13 @@ func warnIfAPIKeyFlag(cmd *cobra.Command) {
 	}
 }
 
-// agentConfig loads runtime config (CLI flags + PHOENIX_* env via viper) and
-// back-fills api_key / api_url from ~/.config/phoenix-firewall/agent.toml when
-// they were not supplied. Flags and env always take precedence over the file.
+// loadConfigWithAgentTOML loads runtime config (CLI flags + PHOENIX_* env via
+// viper) and back-fills every field from ~/.config/phoenix-firewall/agent.toml
+// when not already set. Flags and env always take precedence over the file.
 //
-// Used by commands that run in a plain user shell (e.g. the shim-invoked
-// `bypass verify`), where the only credential source is the enrolled agent.toml.
-func agentConfig() *config.Config {
+// This is the canonical config loader for commands that need the full enrolled
+// identity (api_key, api_url, tenant_id, device_id, team_id, security flags).
+func loadConfigWithAgentTOML() *config.Config {
 	cfg := config.Load()
 
 	home, err := os.UserHomeDir()
@@ -68,11 +68,34 @@ func agentConfig() *config.Config {
 	if cfg.APIKey == "" {
 		cfg.APIKey = lv.GetString("api_key")
 	}
-	// root.go defaults api-url to the dev URL; prefer the enrolled value.
 	if cfg.APIUrl == "" || cfg.APIUrl == "http://localhost:8000" {
 		if u := lv.GetString("api_url"); u != "" {
 			cfg.APIUrl = u
 		}
 	}
+	if cfg.TenantID == "" {
+		cfg.TenantID = lv.GetString("tenant_id")
+	}
+	if cfg.DeviceID == "" {
+		cfg.DeviceID = lv.GetString("device_id")
+	}
+	if cfg.TeamID == "" {
+		cfg.TeamID = lv.GetString("team_id")
+	}
+	if !viper.IsSet("strict_mode") {
+		cfg.StrictMode = lv.GetBool("strict_mode")
+	}
+	if !viper.IsSet("enforce_policy_freshness") {
+		cfg.EnforcePolicyFreshness = lv.GetBool("enforce_policy_freshness")
+	}
+	if cfg.FallbackFeed == "" {
+		cfg.FallbackFeed = lv.GetString("fallback_feed")
+	}
 	return cfg
+}
+
+// agentConfig loads config for shim-invoked commands (e.g. bypass verify).
+// Delegates to loadConfigWithAgentTOML so enrolled tenant_id is always present.
+func agentConfig() *config.Config {
+	return loadConfigWithAgentTOML()
 }
