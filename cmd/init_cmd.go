@@ -114,7 +114,7 @@ mode = "open"
 
 	// Install PATH shims — bake the configured fail_mode into each shim script
 	fmt.Println("[phoenix-firewall] installing package manager shims...")
-	if err := shim.InstallPATH(readFailMode(cfgDir)); err != nil {
+	if err := shim.InstallPATH(readFailMode(cfgDir), proxyPort); err != nil {
 		return fmt.Errorf("install shims: %w", err)
 	}
 

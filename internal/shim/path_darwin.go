@@ -17,13 +17,14 @@ func UserShimDir() string {
 
 // InstallPATH installs shims to ~/.local/bin and adds it to ~/.zprofile and ~/.profile.
 // failMode is "open" or "closed" and is baked into each shim at generation time.
+// proxyPort is the local port the phoenix-firewall proxy listens on (default 8080).
 // No root required.
-func InstallPATH(failMode string) error {
+func InstallPATH(failMode string, proxyPort int) error {
 	shimDir := UserShimDir()
 	if err := os.MkdirAll(shimDir, 0755); err != nil {
 		return fmt.Errorf("create shim dir: %w", err)
 	}
-	g := &Generator{OutputDir: shimDir, FailMode: failMode}
+	g := &Generator{OutputDir: shimDir, FailMode: failMode, ProxyPort: proxyPort}
 	if err := g.Generate(); err != nil {
 		return err
 	}
