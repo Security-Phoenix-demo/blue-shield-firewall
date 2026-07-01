@@ -162,7 +162,9 @@ func runEnrollWithOptions(opts enrollOptions) error {
 	return nil
 }
 
-// upsertTOMLLine replaces key = value in a TOML string, or appends it.
+// upsertTOMLLine replaces key = value in a TOML string, or inserts it.
+// New keys are inserted before the first [section] header so they remain
+// top-level keys rather than being silently placed inside a TOML table.
 func upsertTOMLLine(content, key, quotedValue string) string {
 	newLine := key + " = " + quotedValue
 	lines := strings.Split(content, "\n")
@@ -173,7 +175,19 @@ func upsertTOMLLine(content, key, quotedValue string) string {
 			return strings.Join(lines, "\n")
 		}
 	}
-	// Key not found — append
+	// Key not found — insert before the first [section] header so the new
+	// key lands at the top level and is not absorbed into a TOML table.
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "[") {
+			out := make([]string, 0, len(lines)+1)
+			out = append(out, lines[:i]...)
+			out = append(out, newLine)
+			out = append(out, lines[i:]...)
+			return strings.Join(out, "\n")
+		}
+	}
+	// No section header — append at end.
 	if content != "" && !strings.HasSuffix(content, "\n") {
 		content += "\n"
 	}
