@@ -4,6 +4,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -62,4 +63,21 @@ func init() {
 func initConfig() {
 	viper.SetEnvPrefix("PHOENIX")
 	viper.AutomaticEnv()
+
+	// Honor agent.toml so [fail_mode] mode and other file settings are read.
+	// Flags and env still win over the file (viper precedence).
+	viper.SetConfigType("toml")
+	if home, err := os.UserHomeDir(); err == nil {
+		viper.SetConfigFile(filepath.Join(home, ".config", "phoenix-firewall", "agent.toml"))
+		if err := viper.ReadInConfig(); err != nil {
+			if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
+				fmt.Fprintf(os.Stderr, "[phoenix-firewall] WARNING: failed to read config file: %v\n", err)
+			}
+		}
+	}
+
+	// Allow PHOENIX_FAIL_MODE to override the nested [fail_mode] mode key,
+	// matching the env var the shim honors.
+	_ = viper.BindEnv("fail_mode.mode", "PHOENIX_FAIL_MODE")
+	viper.SetDefault("fail_mode.mode", "open")
 }

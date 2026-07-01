@@ -1,12 +1,12 @@
 # Installing Phoenix Security Blue Shield - Firewall
 
-> Version: v0.2.0
+> Version: v0.4.0
 > Audience: end users on macOS / Windows / Linux installing `phoenix-firewall` from a public GitHub release.
-> Binaries are not yet code-signed — see §5 for what that means and how to work around the OS gatekeepers.
+> Status: **binaries are not yet code-signed** — see §5 for what that means and how to work around the OS gatekeepers.
 
 ---
 
-## 1. One-line installers
+## 1. TL;DR — one-line installers
 
 ### macOS / Linux
 
@@ -17,7 +17,7 @@ curl -sSfL https://raw.githubusercontent.com/Security-Phoenix-demo/blue-shield-f
 Pin a specific version:
 ```bash
 curl -sSfL https://raw.githubusercontent.com/Security-Phoenix-demo/blue-shield-firewall/main/scripts/install.sh \
-  | bash -s -- --version v0.2.0 --prefix ~/.local/bin
+  | bash -s -- --version v0.4.0 --prefix ~/.local/bin
 ```
 
 ### Windows (PowerShell)
@@ -28,7 +28,7 @@ irm https://raw.githubusercontent.com/Security-Phoenix-demo/blue-shield-firewall
 
 Pin a specific version:
 ```powershell
-& ([scriptblock]::Create((irm https://raw.githubusercontent.com/Security-Phoenix-demo/blue-shield-firewall/main/scripts/install.ps1))) -Version v0.2.0
+& ([scriptblock]::Create((irm https://raw.githubusercontent.com/Security-Phoenix-demo/blue-shield-firewall/main/scripts/install.ps1))) -Version v0.4.0
 ```
 
 Both scripts:
@@ -43,23 +43,25 @@ Both scripts:
 
 | OS | Arch | Asset |
 |---|---|---|
-| macOS 11+ | Apple Silicon (M1/M2/M3) | `phoenix-firewall_0.2.0_darwin_arm64.tar.gz` |
-| macOS 11+ | Intel | `phoenix-firewall_0.2.0_darwin_amd64.tar.gz` |
-| Linux | x86_64 | `phoenix-firewall_0.2.0_linux_amd64.tar.gz` |
-| Linux | ARM64 | `phoenix-firewall_0.2.0_linux_arm64.tar.gz` |
-| Windows 10 / 11 | x86_64 | `phoenix-firewall_0.2.0_windows_amd64.zip` |
+| macOS 11+ | Apple Silicon (M1/M2/M3) | `phoenix-firewall_0.4.0_darwin_arm64.tar.gz` |
+| macOS 11+ | Intel | `phoenix-firewall_0.4.0_darwin_amd64.tar.gz` |
+| Linux | x86_64 | `phoenix-firewall_0.4.0_linux_amd64.tar.gz` |
+| Linux | ARM64 | `phoenix-firewall_0.4.0_linux_arm64.tar.gz` |
+| Windows 10 / 11 | x86_64 | `phoenix-firewall_0.4.0_windows_amd64.zip` |
+
+Every asset is paired with a SHA-256 in `checksums.txt` and a Syft SBOM in `*.sbom.json`.
 
 All assets are available at:
-**[github.com/Security-Phoenix-demo/blue-shield-firewall/releases/tag/v0.2.0](https://github.com/Security-Phoenix-demo/blue-shield-firewall/releases/tag/v0.2.0)**
+**[github.com/Security-Phoenix-demo/blue-shield-firewall/releases/tag/v0.4.0](https://github.com/Security-Phoenix-demo/blue-shield-firewall/releases/tag/v0.4.0)**
 
 ---
 
-## 3. Manual install
+## 3. Manual install (no script)
 
 ### macOS / Linux
 
 ```bash
-VER=0.2.0
+VER=0.4.0
 OS=$(uname -s | tr '[:upper:]' '[:lower:]')                  # darwin | linux
 ARCH=$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')    # amd64 | arm64
 
@@ -83,7 +85,7 @@ phoenix-firewall version
 ### Windows (PowerShell, no admin)
 
 ```powershell
-$ver = "0.2.0"
+$ver = "0.4.0"
 $asset = "phoenix-firewall_${ver}_windows_amd64.zip"
 $url = "https://github.com/Security-Phoenix-demo/blue-shield-firewall/releases/download/v$ver/$asset"
 
@@ -134,7 +136,7 @@ GOOS=darwin  GOARCH=arm64 go build -o phoenix-firewall-mac-arm64 .
 
 ## 5. Running an unsigned binary
 
-Binaries in v0.2.0 are unsigned. Apple notarization and Windows Authenticode signing are in progress. Here is what each OS does on first run and how to unblock it.
+Binaries in v0.4.0 are unsigned. Apple notarization and Windows Authenticode signing are in progress. Here is what each OS does on first run and how to unblock it.
 
 ### 5.1 macOS
 
@@ -155,6 +157,8 @@ codesign --force --sign - $(which phoenix-firewall)
 If you opened the binary via Finder before clearing quarantine, also go to:
 **System Settings → Privacy & Security → scroll down → "Open Anyway"**
 
+> Apple notarization is the proper long-term fix. Until the team has an Apple Developer ID + notary submission flow, all macOS users will need these two commands.
+
 ### 5.2 Windows
 
 **Symptom**: SmartScreen popup — _"Windows protected your PC — Microsoft Defender SmartScreen prevented an unrecognized app from starting"_.
@@ -168,6 +172,8 @@ Unblock-File "$env:LOCALAPPDATA\Programs\phoenix-firewall\phoenix-firewall.exe"
 ```
 
 On the SmartScreen popup: click **More info → Run anyway**. Subsequent launches will not prompt.
+
+For unattended scenarios (e.g. CI runners, MDM rollouts) you can exempt the binary path from SmartScreen via Group Policy or registry, but that's an admin-side action — see `PUB-Shield-Endpoint/docs/` for the MDM recipe.
 
 ### 5.3 Linux
 
@@ -269,9 +275,15 @@ go install github.com/slsa-framework/slsa-verifier/v2/cli/slsa-verifier@latest
 slsa-verifier verify-artifact \
   --provenance-path phoenix-firewall.intoto.jsonl \
   --source-uri github.com/Security-Phoenix-demo/blue-shield-firewall \
-  --source-tag v0.2.0 \
-  phoenix-firewall_0.2.0_linux_amd64.tar.gz
+  --source-tag v0.4.0 \
+  phoenix-firewall_0.4.0_linux_amd64.tar.gz
 # Expected: PASSED: SLSA verification passed
+```
+
+### SBOM inspection
+
+```bash
+jq '.components[] | {name, version, purl}' phoenix-firewall_*_$(uname -s | tr '[:upper:]' '[:lower:]')_amd64.sbom.json | head
 ```
 
 ---
@@ -298,7 +310,7 @@ When Apple and Windows certs are in place, the §5 workarounds become unnecessar
 | `phoenix-firewall: command not found` | `~/.local/bin` not in PATH | `export PATH="$HOME/.local/bin:$PATH"` |
 | `killed: 9` on macOS | Gatekeeper rejected unsigned binary | `xattr -d com.apple.quarantine` + `codesign --force --sign -` (§5.1) |
 | `Windows protected your PC` | SmartScreen on unsigned binary | More info → Run anyway (§5.2) |
-| `SHA-256 mismatch` | Wrong asset or arch | Confirm `uname -m`, re-download pinning `--version v0.2.0` |
+| `SHA-256 mismatch` | Wrong asset or arch | Confirm `uname -m`, re-download pinning `--version v0.4.0` |
 | `401 Unauthorized` | Missing or invalid API key | `phoenix-firewall enroll --api-key phx_...` |
 | `connect: connection refused` | Proxy not running | `eval $(phoenix-firewall proxy --api-key $KEY --ci)` |
 
