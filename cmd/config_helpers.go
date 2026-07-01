@@ -91,6 +91,14 @@ func loadConfigWithAgentTOML() *config.Config {
 	if cfg.FallbackFeed == "" {
 		cfg.FallbackFeed = lv.GetString("fallback_feed")
 	}
+	// proxy_port in agent.toml overrides the default (8080) when --port was not
+	// explicitly passed on the CLI. This lets users avoid conflicts with services
+	// like Docker that also bind 8080.
+	if !rootCmd.PersistentFlags().Changed("port") {
+		if tomlPort := lv.GetInt("proxy_port"); tomlPort > 0 {
+			cfg.Port = tomlPort
+		}
+	}
 	return cfg
 }
 

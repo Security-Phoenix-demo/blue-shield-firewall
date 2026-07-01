@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 
 	"github.com/Security-Phoenix-demo/blue-shield-firewall/internal/client"
 	"github.com/Security-Phoenix-demo/blue-shield-firewall/internal/registry"
@@ -81,6 +82,9 @@ func (h *RequestHandler) HandleRequest(req *http.Request, ctx *goproxy.ProxyCtx)
 	if req.URL.Scheme == "" && req.URL.Host == "" && req.Host != "" {
 		urlStr = "https://" + req.Host + req.URL.RequestURI()
 	}
+	// Normalize: goproxy includes :443 in Host for MITM CONNECT tunnels.
+	// Matchers expect canonical URLs without the default port.
+	urlStr = stripDefaultPort(urlStr)
 
 	ref, err := h.matcher.Match(urlStr)
 	if err != nil {
@@ -226,6 +230,23 @@ func (h *RequestHandler) recordResult(ref *registry.PackageRef, result *client.C
 	if h.reporter != nil {
 		h.reporter.Record(ref, result)
 	}
+}
+
+// stripDefaultPort removes the port from a URL when it matches the scheme default
+// (443 for https, 80 for http). goproxy includes :443 in the Host of MITM CONNECT
+// requests; without stripping it, matcher host-checks (e.g. "registry.npmjs.org")
+// fail against "registry.npmjs.org:443".
+func stripDefaultPort(rawURL string) string {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return rawURL
+	}
+	port := u.Port()
+	if (u.Scheme == "https" && port == "443") || (u.Scheme == "http" && port == "80") {
+		u.Host = u.Hostname()
+		return u.String()
+	}
+	return rawURL
 }
 
 // blockResponse constructs a 403 Forbidden response with a JSON body.

@@ -27,14 +27,18 @@ Run 'phoenix-firewall enroll --api-key <key>' after this to activate.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		apiKey, _ := cmd.Flags().GetString("api-key")
 		apiURL, _ := cmd.Flags().GetString("api-url")
+		proxyPort, _ := cmd.Flags().GetInt("proxy-port")
 		if apiURL == "" {
-			apiURL = "https://api.phxintel.security"
+			apiURL = "https://phxintel.security"
 		}
-		return runInit(apiKey, apiURL)
+		return runInit(apiKey, apiURL, proxyPort)
 	},
 }
 
-func runInit(apiKey, apiURL string) error {
+func runInit(apiKey, apiURL string, proxyPort int) error {
+	if proxyPort <= 0 {
+		proxyPort = 8080
+	}
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return fmt.Errorf("home dir: %w", err)
@@ -54,6 +58,7 @@ api_url = %q
 api_key = %q  # replace with your key from phxintel.security
 device_id = ""  # endpoint UUID assigned by Phoenix after enrollment
 team_id = ""    # optional display/reconciliation hint only; Phoenix authorizes server-side
+proxy_port = %d  # local MITM proxy port; change if 8080 conflicts (e.g. with Docker)
 
 [policy]
 poll_interval_s = 300
@@ -67,7 +72,7 @@ depth = "metadata"
 # "open" = allow installs when backend unreachable (default for userland)
 # "closed" = block installs when backend unreachable (enterprise)
 mode = "open"
-`, apiURL, apiKey)
+`, apiURL, apiKey, proxyPort)
 		if err := os.WriteFile(tomlPath, []byte(tomlContent), 0600); err != nil {
 			return fmt.Errorf("write agent.toml: %w", err)
 		}
@@ -90,7 +95,7 @@ mode = "open"
 		"socket_path":  filepath.Join(cfgDir, "worker.sock"),
 		"api_base_url": apiURL,
 		"device_id":    "",
-		"proxy_port":   8080,
+		"proxy_port":   proxyPort,
 		"ca_path":      caPath,
 		"version":      "v4-userland",
 		"collector_capabilities": []string{
@@ -131,6 +136,7 @@ mode = "open"
 
 func init() {
 	initCmd.Flags().String("api-key", "", "Phoenix API key (optional — can be added later via enroll)")
-	initCmd.Flags().String("api-url", "https://api.phxintel.security", "Phoenix API base URL")
+	initCmd.Flags().String("api-url", "https://phxintel.security", "Phoenix API base URL")
+	initCmd.Flags().Int("proxy-port", 8080, "Local proxy port (change if 8080 is in use, e.g. conflicts with Docker)")
 	rootCmd.AddCommand(initCmd)
 }
