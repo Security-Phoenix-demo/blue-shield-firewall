@@ -1,0 +1,10 @@
+{
+  "name": "phoenix-firewall-canary-postinstall-beacon",
+  "version": "0.0.1",
+  "private": true,
+  "description": "SAFE FIREWALL TEST FIXTURE - NOT A REAL PACKAGE - DO NOT PUBLISH. Mimics the network-beacon shape of a real postinstall-based supply-chain attack (DNS lookup + outbound HTTPS call from a lifecycle script) with zero payload and zero filesystem access, so the Phoenix Security firewall's detection of this exact TTP can be exercised without any real risk. See README.md in this directory before doing anything with this package.",
+  "scripts": {
+    "postinstall": "node scripts/postinstall.js"
+  },
+  "license": "UNLICENSED"
+}

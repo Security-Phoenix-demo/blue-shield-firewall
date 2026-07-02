@@ -314,6 +314,12 @@ Global flags:
   --api-key string    Phoenix API key [env: PHOENIX_API_KEY]
   --verbose           Verbose logging
 
+init flags:
+  --proxy-port int    Local proxy port baked into shims (default: 8080; 1-65535)
+  --test-mode         Disable npm/pnpm lifecycle scripts (preinstall/install/postinstall)
+                       unconditionally, even if a package is allowed through — for hosts
+                       used to test the firewall against known-malicious packages
+
 proxy flags:
   --port int          Proxy listen port (default: 8080)
   --ca-dir string     CA directory (default: ~/.config/phoenix-firewall/)
