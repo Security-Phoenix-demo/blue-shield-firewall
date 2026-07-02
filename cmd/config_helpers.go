@@ -91,6 +91,14 @@ func loadConfigWithAgentTOML() *config.Config {
 	if cfg.FallbackFeed == "" {
 		cfg.FallbackFeed = lv.GetString("fallback_feed")
 	}
+	// proxy_port in agent.toml overrides the default (8080) when --port was not
+	// explicitly set via CLI flag or PHOENIX_PORT env var. This lets users avoid
+	// conflicts with services like Docker that also bind 8080.
+	if !viper.IsSet("port") {
+		if tomlPort := lv.GetInt("proxy_port"); tomlPort > 0 && tomlPort <= 65535 {
+			cfg.Port = tomlPort
+		}
+	}
 	return cfg
 }
 

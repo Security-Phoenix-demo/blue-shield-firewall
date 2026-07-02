@@ -3,12 +3,15 @@ package cmd
 import (
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/Security-Phoenix-demo/blue-shield-firewall/internal/client"
 	"github.com/Security-Phoenix-demo/blue-shield-firewall/internal/config"
 	"github.com/Security-Phoenix-demo/blue-shield-firewall/internal/proxy"
 	"github.com/Security-Phoenix-demo/blue-shield-firewall/internal/registry"
+	"github.com/spf13/viper"
 )
 
 func registryReq(t *testing.T) *http.Request {
@@ -51,5 +54,30 @@ func TestApplyHandlerConfig_NonStrictFailsOpen(t *testing.T) {
 	_, resp := h.HandleRequest(registryReq(t), nil)
 	if resp != nil {
 		t.Errorf("non-strict must fail open (nil response); got status %d", resp.StatusCode)
+	}
+}
+
+// PHOENIX_PORT env var must win over agent.toml's proxy_port. Regression test
+// for a precedence bug where the proxy_port override only checked the CLI
+// flag's Changed("port"), missing viper.AutomaticEnv()-sourced env vars — so
+// agent.toml silently clobbered a port set via PHOENIX_PORT.
+func TestLoadConfigWithAgentTOML_EnvPortWinsOverTOMLProxyPort(t *testing.T) {
+	viper.SetEnvPrefix("PHOENIX")
+	viper.AutomaticEnv()
+	t.Setenv("PHOENIX_PORT", "9090")
+
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	cfgDir := filepath.Join(home, ".config", "phoenix-firewall")
+	if err := os.MkdirAll(cfgDir, 0700); err != nil {
+		t.Fatalf("mkdir cfgDir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(cfgDir, "agent.toml"), []byte("proxy_port = 8080\n"), 0600); err != nil {
+		t.Fatalf("write agent.toml: %v", err)
+	}
+
+	cfg := loadConfigWithAgentTOML()
+	if cfg.Port != 9090 {
+		t.Fatalf("PHOENIX_PORT env var must take precedence over agent.toml's proxy_port; got cfg.Port=%d, want 9090", cfg.Port)
 	}
 }

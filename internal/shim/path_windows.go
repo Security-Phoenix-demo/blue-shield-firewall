@@ -67,12 +67,12 @@ if not defined _REAL (
 )
 
 set _PROXY_UP=0
-powershell -nologo -noprofile -command "try{$t=New-Object Net.Sockets.TcpClient;$t.Connect('127.0.0.1',8080);$t.Close();exit 0}catch{exit 1}" >nul 2>&1
+powershell -nologo -noprofile -command "try{$t=New-Object Net.Sockets.TcpClient;$t.Connect('127.0.0.1',%s);$t.Close();exit 0}catch{exit 1}" >nul 2>&1
 if %%ERRORLEVEL%% EQU 0 set _PROXY_UP=1
 
 if "%%_PROXY_UP%%"=="1" (
-    set "HTTPS_PROXY=http://127.0.0.1:8080"
-    set "HTTP_PROXY=http://127.0.0.1:8080"
+    set "HTTPS_PROXY=http://127.0.0.1:%s"
+    set "HTTP_PROXY=http://127.0.0.1:%s"
 %s) else if /i "%%PHOENIX_FAIL_MODE%%"=="closed" (
     echo [phoenix-firewall] proxy unavailable - %s blocked (PHOENIX_FAIL_MODE=closed) >&2
     exit /b 1
@@ -84,16 +84,22 @@ exit /b %%ERRORLEVEL%%
 
 // InstallPATH installs batch shims to %APPDATA%\PhoenixFirewall\shims.
 // failMode is baked into each shim as the default for PHOENIX_FAIL_MODE.
-func InstallPATH(failMode string) error {
+// proxyPort is the local port the phoenix-firewall proxy listens on (default 8080).
+func InstallPATH(failMode string, proxyPort int) error {
 	fm := failMode
 	if fm != "closed" {
 		fm = "open"
+	}
+	port := proxyPort
+	if port == 0 {
+		port = 8080
 	}
 	shimDir := UserShimDir()
 	if err := os.MkdirAll(shimDir, 0755); err != nil {
 		return fmt.Errorf("create shim dir: %w", err)
 	}
 	shimDirBackslash := shimDir + `\`
+	portStr := fmt.Sprintf("%d", port)
 
 	for _, pm := range PackageManagers {
 		caExports := windowsCAExportsOf(pm)
@@ -106,6 +112,9 @@ func InstallPATH(failMode string) error {
 			pm,               // where (main)
 			shimDirBackslash, // exclusion (main)
 			pm,               // echo (not found)
+			portStr,          // PowerShell TCP probe port
+			portStr,          // HTTPS_PROXY port
+			portStr,          // HTTP_PROXY port
 			caExports,        // CA env var lines
 			pm,               // echo (fail-closed)
 		)

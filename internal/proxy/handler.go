@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
+	"strings"
 
 	"github.com/Security-Phoenix-demo/blue-shield-firewall/internal/client"
 	"github.com/Security-Phoenix-demo/blue-shield-firewall/internal/registry"
@@ -88,6 +90,9 @@ func (h *RequestHandler) HandleRequest(req *http.Request, ctx *goproxy.ProxyCtx)
 	if req.URL.Scheme == "" && req.URL.Host == "" && req.Host != "" {
 		urlStr = "https://" + req.Host + req.URL.RequestURI()
 	}
+	// Normalize: goproxy includes :443 in Host for MITM CONNECT tunnels.
+	// Matchers expect canonical URLs without the default port.
+	urlStr = stripDefaultPort(urlStr)
 
 	ref, err := h.matcher.Match(urlStr)
 	if err != nil {
@@ -98,6 +103,9 @@ func (h *RequestHandler) HandleRequest(req *http.Request, ctx *goproxy.ProxyCtx)
 	}
 	if ref == nil {
 		// Not a registry URL — pass through
+		if h.verbose {
+			log.Printf("[handler] no registry match for %s", urlStr)
+		}
 		return req, nil
 	}
 
@@ -239,6 +247,32 @@ func (h *RequestHandler) recordResult(ref *registry.PackageRef, result *client.C
 	if h.reporter != nil {
 		h.reporter.Record(ref, result)
 	}
+}
+
+// stripDefaultPort removes the port from a URL when it matches the scheme default
+// (443 for https, 80 for http). goproxy includes :443 in the Host of MITM CONNECT
+// requests; without stripping it, matcher host-checks (e.g. "registry.npmjs.org")
+// fail against "registry.npmjs.org:443". An empty scheme (schemeless URLs) is
+// treated as either default, since the reconstructed request itself may omit it.
+func stripDefaultPort(rawURL string) string {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return rawURL
+	}
+	port := u.Port()
+	isDefault := (port == "443" && (u.Scheme == "https" || u.Scheme == "")) ||
+		(port == "80" && (u.Scheme == "http" || u.Scheme == ""))
+	if !isDefault {
+		return rawURL
+	}
+	// Trim only the ":<port>" suffix so bracketed IPv6 literals (e.g. "[::1]:443")
+	// keep their brackets — u.Hostname() strips them, which would otherwise
+	// produce an invalid re-serialized host ("::1" instead of "[::1]").
+	suffix := ":" + port
+	if strings.HasSuffix(u.Host, suffix) {
+		u.Host = strings.TrimSuffix(u.Host, suffix)
+	}
+	return u.String()
 }
 
 // blockResponse constructs a 403 Forbidden response with a JSON body.
