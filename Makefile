@@ -8,9 +8,9 @@ GIT_COMMIT  ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 BUILD_DATE  ?= $(shell date -u '+%Y-%m-%dT%H:%M:%SZ')
 
 LDFLAGS := -s -w \
-	-X $(MODULE)/cmd.Version=$(VERSION) \
-	-X $(MODULE)/cmd.GitCommit=$(GIT_COMMIT) \
-	-X $(MODULE)/cmd.BuildDate=$(BUILD_DATE)
+	-X $(MODULE)/cmd.version=$(VERSION) \
+	-X $(MODULE)/cmd.commit=$(GIT_COMMIT) \
+	-X $(MODULE)/cmd.date=$(BUILD_DATE)
 
 DIST_DIR := dist
 
