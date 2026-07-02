@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -20,43 +22,53 @@ func TestStartEndpointHeartbeat_NoAPIKey(t *testing.T) {
 	stop() // must not panic
 }
 
-// Stop func must be idempotent (sync.Once).
+// Stop func must be idempotent (sync.Once). Uses a real APIKey so
+// startEndpointHeartbeat takes the HeartbeatSender path (not the no-op early
+// return), exercising the actual once.Do(sender.Stop) this test targets.
 func TestStartEndpointHeartbeat_StopIdempotent(t *testing.T) {
-	// Provide a device ID but no API key so we get the no-op early return.
-	// We can't easily test the real sender without a live server, but we can
-	// verify that double-calling stop never panics.
-	stop := startEndpointHeartbeat(&config.Config{APIKey: "", DeviceID: "dev-1"})
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
+	stop := startEndpointHeartbeat(&config.Config{APIUrl: srv.URL, APIKey: "k", DeviceID: "dev-1"})
 	stop()
-	stop() // second call must not panic
+	stop() // second call must not panic (channel double-close guarded by sync.Once)
 }
 
 // Minimum interval clamp: PHOENIX_HEARTBEAT_INTERVAL_SECONDS=1 must yield >= 10s.
+// loop() sends immediately on Start, then waits `interval` before the next
+// send. We assert only the immediate send lands within the window and no
+// second send follows a raw (unclamped) 1s tick.
 func TestStartEndpointHeartbeat_MinInterval(t *testing.T) {
 	t.Setenv("PHOENIX_HEARTBEAT_INTERVAL_SECONDS", "1")
 
-	// We can't inspect the internal interval directly, but we can verify the
-	// env parse path doesn't panic and the function returns cleanly.
-	stop := startEndpointHeartbeat(&config.Config{APIKey: "", DeviceID: "dev-1"})
-	stop()
-}
+	var hits int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt32(&hits, 1)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
 
-// Config bool precedence: viper.IsSet guards must be exercised.
-// Since viper global state isn't trivially resettable in unit tests, we verify
-// that loadConfigWithAgentTOML returns without panic on a clean home dir.
-func TestStartEndpointHeartbeat_ZeroValueNoPanic(t *testing.T) {
-	var called int32
-	stop := startEndpointHeartbeat(&config.Config{})
-	// stop should be the no-op (empty api key path)
-	stop()
-	// Calling it again must not bump a real counter or panic.
-	stop()
-	_ = atomic.LoadInt32(&called) // suppress unused-var warning
+	stop := startEndpointHeartbeat(&config.Config{APIUrl: srv.URL, APIKey: "k", DeviceID: "dev-1"})
+	defer stop()
+
+	time.Sleep(2 * time.Second)
+	if got := atomic.LoadInt32(&hits); got != 1 {
+		t.Fatalf("expected exactly 1 send (immediate) within 2s under the 10s clamp; got %d — interval clamp not applied", got)
+	}
 }
 
 // Verify that the stop closure wraps sync.Once regardless of how many times
-// it is called (regression for the channel double-close panic).
+// it is called (regression for the channel double-close panic). Uses a real
+// APIKey so the HeartbeatSender path is exercised.
 func TestStartEndpointHeartbeat_StopCalledConcurrently(t *testing.T) {
-	stop := startEndpointHeartbeat(&config.Config{APIKey: "", DeviceID: "d"})
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
+	stop := startEndpointHeartbeat(&config.Config{APIUrl: srv.URL, APIKey: "k", DeviceID: "d"})
 	done := make(chan struct{})
 	for i := 0; i < 10; i++ {
 		go func() { stop(); done <- struct{}{} }()

@@ -52,7 +52,9 @@ func TestCheck_TenantIDWired(t *testing.T) {
 	// Without tenant_id — field must be absent (omitempty)
 	captured = nil
 	plain := New(srv.URL, "k")
-	_, _ = plain.Check("npm", "lodash", "4.17.21")
+	if _, err := plain.Check("npm", "lodash", "4.17.21"); err != nil {
+		t.Fatalf("Check error: %v", err)
+	}
 	if _, present := captured["tenant_id"]; present {
 		t.Fatal("tenant_id must be absent from payload when not set")
 	}

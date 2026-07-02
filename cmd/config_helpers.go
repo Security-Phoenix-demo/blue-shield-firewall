@@ -95,7 +95,7 @@ func loadConfigWithAgentTOML() *config.Config {
 	// explicitly set via CLI flag or PHOENIX_PORT env var. This lets users avoid
 	// conflicts with services like Docker that also bind 8080.
 	if !viper.IsSet("port") {
-		if tomlPort := lv.GetInt("proxy_port"); tomlPort > 0 {
+		if tomlPort := lv.GetInt("proxy_port"); tomlPort > 0 && tomlPort <= 65535 {
 			cfg.Port = tomlPort
 		}
 	}

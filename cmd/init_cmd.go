@@ -39,6 +39,8 @@ Run 'phoenix-firewall enroll --api-key <key>' after this to activate.`,
 func runInit(apiKey, apiURL string, proxyPort int) error {
 	if proxyPort <= 0 {
 		proxyPort = 8080
+	} else if proxyPort > 65535 {
+		return fmt.Errorf("invalid proxy port %d: must be between 1 and 65535", proxyPort)
 	}
 	home, err := os.UserHomeDir()
 	if err != nil {

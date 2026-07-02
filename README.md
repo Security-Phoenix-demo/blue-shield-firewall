@@ -269,6 +269,14 @@ export SSL_CERT_FILE=~/.config/phoenix-firewall/phoenix-ca.crt
 npm ci
 ```
 
+> **Warning**: `export` sets these variables for the rest of the shell session, not just `npm ci` — every HTTPS client you run afterward (other package managers, LLM CLIs, `curl`, etc.) will also route through `127.0.0.1:8080`. If you stop the proxy without unsetting them, those tools will fail to connect until you do.
+>
+> When you're done, unset them:
+> ```bash
+> unset HTTPS_PROXY NODE_EXTRA_CA_CERTS SSL_CERT_FILE
+> ```
+> Or scope the variables to a single command instead of exporting them shell-wide — see [docs/LOCAL_PROXY_ALIAS_GUIDE.md](docs/LOCAL_PROXY_ALIAS_GUIDE.md) for the per-command pattern (`HTTPS_PROXY=... npm ci`), which avoids this entirely.
+
 ### CI mode (one-line)
 
 ```bash
