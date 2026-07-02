@@ -29,14 +29,15 @@ Run 'phoenix-firewall enroll --api-key <key>' after this to activate.`,
 		apiKey, _ := cmd.Flags().GetString("api-key")
 		apiURL, _ := cmd.Flags().GetString("api-url")
 		proxyPort, _ := cmd.Flags().GetInt("proxy-port")
+		testMode, _ := cmd.Flags().GetBool("test-mode")
 		if apiURL == "" {
 			apiURL = "https://phxintel.security"
 		}
-		return runInit(apiKey, apiURL, proxyPort)
+		return runInit(apiKey, apiURL, proxyPort, testMode)
 	},
 }
 
-func runInit(apiKey, apiURL string, proxyPort int) error {
+func runInit(apiKey, apiURL string, proxyPort int, testMode bool) error {
 	if proxyPort <= 0 {
 		proxyPort = 8080
 	} else if proxyPort > 65535 {
@@ -62,6 +63,7 @@ api_key = %q  # replace with your key from phxintel.security
 device_id = ""  # endpoint UUID assigned by Phoenix after enrollment
 team_id = ""    # optional display/reconciliation hint only; Phoenix authorizes server-side
 proxy_port = %d  # local MITM proxy port; change if 8080 conflicts (e.g. with Docker)
+test_mode = %t  # when true, npm/pnpm lifecycle scripts are always disabled, even if a package is allowed through
 
 [policy]
 poll_interval_s = 300
@@ -75,7 +77,7 @@ depth = "metadata"
 # "open" = allow installs when backend unreachable (default for userland)
 # "closed" = block installs when backend unreachable (enterprise)
 mode = "open"
-`, apiURL, apiKey, proxyPort)
+`, apiURL, apiKey, proxyPort, testMode)
 		if err := os.WriteFile(tomlPath, []byte(tomlContent), 0600); err != nil {
 			return fmt.Errorf("write agent.toml: %w", err)
 		}
@@ -99,6 +101,7 @@ mode = "open"
 		"api_base_url": apiURL,
 		"device_id":    "",
 		"proxy_port":   proxyPort,
+		"test_mode":    testMode,
 		"ca_path":      caPath,
 		"version":      "v4-userland",
 		"collector_capabilities": []string{
@@ -116,8 +119,11 @@ mode = "open"
 
 	// Install PATH shims — bake the configured fail_mode into each shim script
 	fmt.Println("[phoenix-firewall] installing package manager shims...")
-	if err := shim.InstallPATH(readFailMode(cfgDir), proxyPort); err != nil {
+	if err := shim.InstallPATH(readFailMode(cfgDir), proxyPort, testMode); err != nil {
 		return fmt.Errorf("install shims: %w", err)
+	}
+	if testMode {
+		fmt.Println("[phoenix-firewall] test mode: npm/pnpm lifecycle scripts (preinstall/install/postinstall) are disabled in every generated shim, regardless of firewall verdict")
 	}
 
 	fmt.Println()
@@ -150,5 +156,6 @@ func init() {
 	initCmd.Flags().String("api-key", "", "Phoenix API key (optional — can be added later via enroll)")
 	initCmd.Flags().String("api-url", "https://phxintel.security", "Phoenix API base URL")
 	initCmd.Flags().Int("proxy-port", 8080, "Local proxy port (change if 8080 is in use, e.g. conflicts with Docker)")
+	initCmd.Flags().Bool("test-mode", false, "Disable npm/pnpm lifecycle scripts (preinstall/install/postinstall) unconditionally — for hosts used to test the firewall against known-malicious packages, so a script can't execute even if the package is let through")
 	rootCmd.AddCommand(initCmd)
 }

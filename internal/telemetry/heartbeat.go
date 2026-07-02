@@ -97,6 +97,10 @@ func (h *HeartbeatSender) send() error {
 			"warns_5m":       0,
 			"cache_hits_5m":  0,
 		},
+		// Installs that ran without firewall evaluation since the last heartbeat
+		// (proxy unreachable + fail_mode=open). Lets the backend flag hosts where
+		// packages — including test samples — executed without being scanned.
+		"direct_install_bypass_events": DrainBypassEvents(),
 	}
 	b, _ := json.Marshal(payload)
 	req, err := http.NewRequest(http.MethodPost, h.apiURL+"/api/v1/firewall/agent/heartbeat", bytes.NewReader(b))

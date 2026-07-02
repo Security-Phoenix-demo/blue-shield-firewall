@@ -86,3 +86,54 @@ func TestGenerate_FailModeClosedBakedIn(t *testing.T) {
 		t.Error("closed fail mode not baked into shim")
 	}
 }
+
+// DenyScripts must force npm/pnpm lifecycle scripts off unconditionally
+// (before the bypass-token check, so it can't be sidestepped), and must not
+// touch PMs with no reliable env-var mechanism (e.g. cargo).
+func TestGenerate_DenyScripts_NpmAndPnpmDisableLifecycleScripts(t *testing.T) {
+	dir := t.TempDir()
+	g := &Generator{OutputDir: dir, ProxyPort: 8080, DenyScripts: true}
+	if err := g.Generate(); err != nil {
+		t.Fatalf("generate: %v", err)
+	}
+
+	for _, pm := range []string{"npm", "pnpm"} {
+		data, err := os.ReadFile(filepath.Join(dir, pm))
+		if err != nil {
+			t.Fatalf("read %s shim: %v", pm, err)
+		}
+		shim := string(data)
+		if !strings.Contains(shim, "export npm_config_ignore_scripts=true") {
+			t.Errorf("%s shim missing npm_config_ignore_scripts export", pm)
+		}
+		bypassIdx := strings.Index(shim, "PHOENIX_FIREWALL_BYPASS_TOKEN")
+		denyIdx := strings.Index(shim, "npm_config_ignore_scripts")
+		if bypassIdx == -1 || denyIdx == -1 || denyIdx > bypassIdx {
+			t.Errorf("%s: lifecycle-script deny must be set before the bypass-token check, not after", pm)
+		}
+	}
+
+	data, err := os.ReadFile(filepath.Join(dir, "cargo"))
+	if err != nil {
+		t.Fatalf("read cargo shim: %v", err)
+	}
+	if strings.Contains(string(data), "ignore_scripts") {
+		t.Error("cargo shim must not reference lifecycle-script env vars — no reliable mechanism for it")
+	}
+}
+
+// Without DenyScripts (the default), no shim should reference the deny mechanism.
+func TestGenerate_DenyScripts_OffByDefault(t *testing.T) {
+	dir := t.TempDir()
+	g := &Generator{OutputDir: dir, ProxyPort: 8080}
+	if err := g.Generate(); err != nil {
+		t.Fatalf("generate: %v", err)
+	}
+	data, err := os.ReadFile(filepath.Join(dir, "npm"))
+	if err != nil {
+		t.Fatalf("read npm shim: %v", err)
+	}
+	if strings.Contains(string(data), "ignore_scripts") {
+		t.Error("npm shim must not disable lifecycle scripts unless DenyScripts is set")
+	}
+}
