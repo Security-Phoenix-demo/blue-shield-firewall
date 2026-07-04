@@ -1,8 +1,9 @@
 module github.com/Security-Phoenix-demo/blue-shield-firewall/phoenix-firewall
 
-go 1.23.0
+go 1.25.0
 
 require (
+	github.com/Security-Phoenix-demo/phoenix-firewall v0.3.0
 	github.com/elazarl/goproxy v1.8.3
 	github.com/spf13/cobra v1.8.1
 	github.com/spf13/viper v1.19.0
@@ -25,9 +26,9 @@ require (
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.9.0 // indirect
 	golang.org/x/exp v0.0.0-20230905200255-921286631fa9 // indirect
-	golang.org/x/net v0.43.0 // indirect
-	golang.org/x/sys v0.35.0 // indirect
-	golang.org/x/text v0.28.0 // indirect
+	golang.org/x/net v0.55.0 // indirect
+	golang.org/x/sys v0.45.0 // indirect
+	golang.org/x/text v0.37.0 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
