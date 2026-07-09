@@ -7,6 +7,21 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.4.1] — 2026-07-09
+
+### Fixed
+
+- **Enrollment sends the full v4 payload on the `--api-key` path**
+  (`cmd/enroll.go`, `internal/client/`): `phoenix-firewall enroll --api-key <key>`
+  previously called a legacy client method that sent only `device_id` + `metadata`,
+  so the backend rejected it with `422` (missing `bootstrap_token`, `hostname`,
+  `platform`, `agent_version`). Both enrollment paths now build the complete
+  `EnrollRequest` (hostname, platform, agent_version) via `EnrollDevice`;
+  `bootstrap_token` is omitted from the body when empty so the API-key path is
+  authorized by the key alone. Removed the stripped legacy `Enroll` method.
+
+---
+
 ## [0.4.0] — 2026-07-09
 
 ### Added

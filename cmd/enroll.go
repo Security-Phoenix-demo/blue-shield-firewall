@@ -69,17 +69,30 @@ func runEnrollWithOptions(opts enrollOptions) error {
 	if opts.DeviceID == "" {
 		opts.DeviceID = opts.Identity.DeviceID
 	}
+	if opts.DeviceID == "" {
+		opts.DeviceID = defaultDeviceID()
+	}
+
+	// Backend enrollment always sends the FULL v4 payload (hostname, platform,
+	// agent_version) so the backend EnrollRequest contract is satisfied whether
+	// we authenticate with a one-time bootstrap token or an existing API key.
+	// When no bootstrap token is present, bootstrap_token is omitted from the
+	// body and the backend authorizes enrollment via the API key alone.
+	enrollReq := client.EnrollRequest{
+		TenantID:       opts.TenantID,
+		DeviceID:       opts.DeviceID,
+		BootstrapToken: opts.BootstrapToken,
+		Hostname:       opts.Identity.Hostname,
+		Platform:       runtime.GOOS,
+		AgentVersion:   version,
+		TeamID:         opts.TeamID,
+		Metadata:       opts.Identity.Metadata("shim"),
+	}
+
 	if opts.BootstrapToken != "" {
-		enrolled, err := client.New(opts.APIURL, opts.APIKey).EnrollDevice(client.EnrollRequest{
-			TenantID:       opts.TenantID,
-			DeviceID:       opts.DeviceID,
-			BootstrapToken: opts.BootstrapToken,
-			Hostname:       opts.Identity.Hostname,
-			Platform:       runtime.GOOS,
-			AgentVersion:   version,
-			TeamID:         opts.TeamID,
-			Metadata:       opts.Identity.Metadata("shim"),
-		})
+		// One-time bootstrap token: enrollment must succeed (the token is
+		// single-use), so surface any error to the caller.
+		enrolled, err := client.New(opts.APIURL, opts.APIKey).EnrollDevice(enrollReq)
 		if err != nil {
 			return err
 		}
@@ -89,18 +102,11 @@ func runEnrollWithOptions(opts enrollOptions) error {
 		if enrolled.DeviceID != "" {
 			opts.DeviceID = enrolled.DeviceID
 		}
-	}
-	if opts.DeviceID == "" {
-		opts.DeviceID = defaultDeviceID()
-	}
-
-	// Register with the backend (best-effort). On comms failure we keep local
-	// config so the user is not blocked, but we tell them clearly.
-	// Skip if a bootstrap token was provided — EnrollDevice() above already
-	// performed the backend registration; a second POST would fail one-time tokens.
-	if opts.BootstrapToken == "" {
+	} else {
+		// API-key enrollment is best-effort. On comms failure we keep local
+		// config so the user is not blocked, but we tell them clearly.
 		c := client.New(opts.APIURL, opts.APIKey)
-		if resp, err := c.Enroll(opts.DeviceID, opts.BootstrapToken, enrollMetadata()); err != nil {
+		if resp, err := c.EnrollDevice(enrollReq); err != nil {
 			fmt.Fprintf(os.Stderr, "[phoenix-firewall] WARNING: backend enrollment failed: %v\n", err)
 			fmt.Fprintln(os.Stderr, "[phoenix-firewall] continuing with local config; re-run 'phoenix-firewall enroll' once connectivity is restored")
 		} else {
@@ -200,16 +206,6 @@ func defaultDeviceID() string {
 		return "dev-" + h
 	}
 	return "dev-unknown"
-}
-
-// enrollMetadata reports basic host metadata to the backend at enroll time.
-func enrollMetadata() map[string]string {
-	host, _ := os.Hostname()
-	return map[string]string{
-		"hostname": host,
-		"os":       runtime.GOOS,
-		"arch":     runtime.GOARCH,
-	}
 }
 
 func init() {

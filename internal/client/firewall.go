@@ -245,51 +245,6 @@ func (c *Client) Check(ecosystem, name, version string) (*CheckResult, error) {
 	}, nil
 }
 
-// agentEnrollRequest is the body sent to the agent enroll endpoint.
-type agentEnrollRequest struct {
-	DeviceID string            `json:"device_id"`
-	Metadata map[string]string `json:"metadata,omitempty"`
-}
-
-// Enroll registers this device/agent with the Phoenix backend. A bootstrap token
-// (if provided) authenticates the enroll; otherwise the existing API key is used.
-func (c *Client) Enroll(deviceID, bootstrapToken string, metadata map[string]string) (*EnrollResponse, error) {
-	body, err := json.Marshal(agentEnrollRequest{DeviceID: deviceID, Metadata: metadata})
-	if err != nil {
-		return nil, fmt.Errorf("marshal enroll request: %w", err)
-	}
-	url := fmt.Sprintf("%s/api/v1/firewall/agent/enroll", c.baseURL)
-	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(body))
-	if err != nil {
-		return nil, fmt.Errorf("create enroll request: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-	if bootstrapToken != "" {
-		req.Header.Set("Authorization", "Bearer "+bootstrapToken)
-	} else if c.apiKey != "" {
-		req.Header.Set("Authorization", "Bearer "+c.apiKey)
-	}
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("enroll request failed: %w", err)
-	}
-	defer resp.Body.Close()
-
-	data, err := io.ReadAll(io.LimitReader(resp.Body, maxRespBytes))
-	if err != nil {
-		return nil, fmt.Errorf("read enroll response: %w", err)
-	}
-	if int64(len(data)) >= maxRespBytes {
-		return nil, fmt.Errorf("enroll response too large (exceeded %d bytes)", maxRespBytes)
-	}
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		return nil, fmt.Errorf("enroll returned %d: %s", resp.StatusCode, string(data))
-	}
-
-	var er EnrollResponse // EnrollResponse defined in inventory.go
-	if err := json.Unmarshal(data, &er); err != nil {
-		return nil, fmt.Errorf("parse enroll response: %w", err)
-	}
-	return &er, nil
-}
+// Device enrollment lives in inventory.go (EnrollDevice + EnrollRequest), which
+// sends the full v4 payload the backend requires (device_id, bootstrap_token,
+// hostname, platform, agent_version).

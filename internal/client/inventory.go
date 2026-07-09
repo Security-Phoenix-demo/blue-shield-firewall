@@ -48,7 +48,7 @@ type CombinedInventoryPayload struct {
 type EnrollRequest struct {
 	TenantID         string                 `json:"tenant_id,omitempty"`
 	DeviceID         string                 `json:"device_id"`
-	BootstrapToken   string                 `json:"bootstrap_token"`
+	BootstrapToken   string                 `json:"bootstrap_token,omitempty"`
 	Hostname         string                 `json:"hostname"`
 	Platform         string                 `json:"platform"`
 	AgentVersion     string                 `json:"agent_version"`
