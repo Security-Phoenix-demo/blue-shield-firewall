@@ -7,7 +7,7 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [0.4.0] — 2026-06-19
+## [0.4.0] — 2026-07-09
 
 ### Added
 
@@ -55,6 +55,32 @@ Versions follow [Semantic Versioning](https://semver.org/).
   `docs/LOCAL_PROXY_ALIAS_GUIDE.md`): step-by-step guides for unsigned-binary
   installation on macOS/Windows/Linux and setting up local proxy aliases.
 
+- **Tenant ID propagation** (`internal/client`, `cmd/heartbeat.go`): `tenant_id` from
+  enrollment now threads through to the `/evaluate` payload and heartbeat, scoping
+  policy to the correct Phoenix organization end-to-end.
+
+- **Configurable local proxy port** (`cmd/init_cmd.go`, `internal/shim/generator.go`,
+  `internal/config`): `--proxy-port` flag / `proxy_port` in `agent.toml` lets users
+  avoid conflicts with services (e.g. Docker) that also bind 8080. Precedence:
+  CLI flag / `PHOENIX_PORT` env var > `agent.toml` > 8080 default.
+
+- **`--test-mode` for `init`** (`internal/shim/generator.go`, all 3 platforms): bakes
+  an unconditional `npm_config_ignore_scripts=true` into every generated npm/pnpm
+  shim — before the bypass-token check, independent of firewall verdict or proxy
+  reachability. For hosts used to test the firewall against known-malicious
+  packages, so a lifecycle script can't execute even if the package is let through.
+
+- **Direct-host-install (proxy-bypass) detection** (`internal/telemetry/bypass.go`):
+  shims now always record unscanned installs (proxy unreachable, `fail_mode=open`)
+  to a local log, independent of `PHOENIX_FIREWALL_VERBOSE`. The endpoint daemon's
+  heartbeat drains and reports `direct_install_bypass_events` on every cycle.
+
+- **Safe canary test fixture** (`internal/proxy/testdata/canary-packages/`):
+  local-only npm package mimicking a postinstall network-beacon TTP (DNS lookup +
+  outbound HTTPS call) with zero real risk — no filesystem/credential access, no
+  data exfiltration, always exits 0 — for exercising this detection path safely.
+  Not wired into any build/CI path and not published.
+
 ### Fixed
 
 - **Bash `exec` permanent stderr redirection bug**: the bare
@@ -80,12 +106,49 @@ Versions follow [Semantic Versioning](https://semver.org/).
   permissions on `O_CREATE`; a pre-existing file retains its old mode.
   `os.Chmod(tomlPath, 0600)` is now called explicitly after every write.
 
+- **npm registry matcher missed the default HTTPS port** (`internal/proxy/handler.go`):
+  goproxy's MITM CONNECT tunnels present the host as `registry.npmjs.org:443`, which
+  failed the matchers' exact-host comparison and silently passed npm tarball
+  requests through unchecked. `stripDefaultPort` now normalizes the URL before
+  matching — also handles schemeless URLs and preserves bracketed IPv6 literals.
+
+- **`proxy_port` TOML override ignored env-var precedence** (`cmd/config_helpers.go`):
+  the override only checked the CLI flag's `Changed("port")`, missing
+  `PHOENIX_PORT` env var values sourced via `viper.AutomaticEnv()` — so `agent.toml`
+  could silently clobber a port set via env var. Now checks `viper.IsSet("port")`,
+  matching the precedence pattern already used for `strict_mode`/`enforce_policy_freshness`.
+
+- **`init --proxy-port`/`agent.toml` `proxy_port` accepted out-of-range values**:
+  now validated against 1–65535 instead of writing an unusable port to config.
+
+- **Heartbeat/tenant-wire tests didn't exercise the paths they claimed to**: three
+  heartbeat tests passed an empty API key, hitting the no-op early return instead of
+  the real `sync.Once` stop / interval-clamp logic; a tenant-wire test discarded a
+  `Check()` error, letting its `omitempty` assertion pass vacuously. Rewritten
+  against real code paths.
+
+- **`Makefile` `build`/`build-all` stamped `dev (commit: unknown, built: unknown)`**
+  regardless of `VERSION`/`GIT_COMMIT`/`BUILD_DATE`: ldflags targeted nonexistent
+  `cmd.Version`/`cmd.GitCommit`/`cmd.BuildDate` symbols instead of the actual
+  lowercase `cmd.version`/`cmd.commit`/`cmd.date` (`.goreleaser.yml` already had
+  this right; only the plain Makefile was stale).
+
+### Security
+
+- Bumped `golang.org/x/net` 0.43.0 → 0.55.0 (medium-severity HTML-parser
+  denial-of-service advisory, GHSA-5cv4-jp36-h3mw).
+
 ### Known gaps (tracked for follow-up)
 
 - Windows shim still uses a bare PowerShell TCP probe — no HTTP identity handshake.
   Full handshake requires PowerShell 5+ `WebClient`; tracked for a follow-up PR.
 - `PUB-firewall/phoenix-firewall/` nested duplicate directory is stale; safe to remove
   but requires explicit authorisation for destructive deletion.
+- `--test-mode` disables lifecycle scripts for npm and pnpm only; Yarn Classic does
+  not reliably honor `npm_config_ignore_scripts` via env var and needs a CLI flag
+  the shim can't safely inject for every subcommand — tracked as a follow-up.
+- Open low-severity Rust `lru` crate advisory (GHSA-rhfx-m35p-ff5j) on
+  `Cargo.toml`/`phoenix-firewall/Cargo.toml`, not addressed by this release.
 
 ---
 
