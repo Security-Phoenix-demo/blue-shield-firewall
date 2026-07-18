@@ -46,7 +46,9 @@ if [ -n "${PHOENIX_FIREWALL_BYPASS_TOKEN:-}" ]; then
                 exec "${_d}/{{.PM}}" "$@"
             fi
         done
-        echo "[phoenix-firewall] cannot find real {{.PM}} in PATH" >&2; exit 127
+        echo "{{.PM}}: command not found" >&2
+        echo "[phoenix-firewall] note: no real {{.PM}} on PATH; nothing to run (firewall shim is pass-through only)" >&2
+        exit 127
     fi
     echo "[phoenix-firewall] bypass token not authorized — routing through firewall" >&2
 fi
@@ -64,7 +66,12 @@ for _d in "${_DIRS[@]}"; do
 done
 
 if [ -z "$_REAL" ]; then
-    echo "[phoenix-firewall] cannot find real {{.PM}} (shim dir excluded from search)" >&2
+    # No real {{.PM}} exists on PATH — only this firewall shim is present. Emit
+    # standard "command not found" semantics so build tools that probed
+    # 'command -v {{.PM}}' see a normal missing-command failure, rather than a
+    # message that reads as though the firewall broke the build.
+    echo "{{.PM}}: command not found" >&2
+    echo "[phoenix-firewall] note: no real {{.PM}} on PATH; nothing to run (firewall shim is pass-through only)" >&2
     exit 127
 fi
 

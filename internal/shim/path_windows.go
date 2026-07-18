@@ -53,7 +53,7 @@ if defined PHOENIX_FIREWALL_BYPASS_TOKEN (
                 exit /b %%ERRORLEVEL%%
             )
         )
-        echo [phoenix-firewall] cannot find real %s >&2 & exit /b 127
+        echo %s: command not found >&2 & echo [phoenix-firewall] note: no real %s on PATH; nothing to run ^(firewall shim is pass-through only^) >&2 & exit /b 127
     )
 )
 
@@ -64,7 +64,7 @@ for /f "delims=" %%%%i in ('where %s 2^>nul') do (
     )
 )
 if not defined _REAL (
-    echo [phoenix-firewall] cannot find real %s in PATH >&2 & exit /b 127
+    echo %s: command not found >&2 & echo [phoenix-firewall] note: no real %s on PATH; nothing to run ^(firewall shim is pass-through only^) >&2 & exit /b 127
 )
 
 set _PROXY_UP=0
@@ -120,10 +120,12 @@ func InstallPATH(failMode string, proxyPort int, denyScripts bool) error {
 			fm,                 // baked-in PHOENIX_FAIL_MODE default
 			pm,                 // where (bypass)
 			shimDirBackslash,   // exclusion (bypass)
-			pm,                 // echo (bypass)
+			pm,                 // echo (bypass): "%s: command not found"
+			pm,                 // echo (bypass): "no real %s on PATH"
 			pm,                 // where (main)
 			shimDirBackslash,   // exclusion (main)
-			pm,                 // echo (not found)
+			pm,                 // echo (not found): "%s: command not found"
+			pm,                 // echo (not found): "no real %s on PATH"
 			portStr,            // PowerShell TCP probe port
 			portStr,            // HTTPS_PROXY port
 			portStr,            // HTTP_PROXY port

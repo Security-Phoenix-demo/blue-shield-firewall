@@ -7,6 +7,27 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.4.2] — 2026-07-18
+
+### Fixed
+
+- **Shim reports missing package managers as `command not found`, not a firewall
+  error** (`internal/shim/generator.go`, `internal/shim/path_windows.go`): the
+  interception shim is generated for every supported package manager
+  unconditionally, including ones with no real binary on the host (e.g. `cargo`
+  when Rust is not installed). Because the shim dir is prepended to `PATH`,
+  `command -v cargo` resolves to the shim, so build backends take the
+  Rust-build path and then hit the shim, which previously exited `127` with
+  `[phoenix-firewall] cannot find real cargo (shim dir excluded from search)` —
+  a message that reads as though the firewall broke the build. The empty-`_REAL`
+  branch (bash and Windows batch) now emits standard `cargo: command not found`
+  semantics plus a non-accusatory firewall note. Diagnostics only: the install
+  fails regardless because the toolchain is genuinely absent. Shims are still
+  generated for all PMs by design — conditional generation would leave a PM
+  installed *after* the firewall unproxied (an interception bypass).
+
+---
+
 ## [0.4.1] — 2026-07-09
 
 ### Fixed
