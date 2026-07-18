@@ -11,6 +11,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -37,6 +38,16 @@ phx_whk_* Webhook key, or a Cognito JWT.`,
 		}
 		if apiKey == "" {
 			return fmt.Errorf("api key not set: pass --api-key or export PHOENIX_API_KEY")
+		}
+		// After `enroll`, agent.toml stores a device AGENT key (phx_fwagent_*),
+		// which the rules API rejects (it accepts phx_fw_* self-service keys,
+		// phx_whk_* webhook keys, or a JWT). Without this guard the agent key
+		// silently flows through and the server returns an opaque 401. Fail
+		// early with an actionable message instead.
+		if strings.HasPrefix(apiKey, "phx_fwagent_") {
+			return fmt.Errorf("the credential in use is a device agent key (phx_fwagent_...), which the rules API does not accept.\n"+
+				"Rule management needs a self-service Malware Firewall key (phx_fw_...).\n"+
+				"Pass one explicitly: phoenix-firewall rules list --api-key phx_fw_...  (or export PHOENIX_API_KEY=phx_fw_...)")
 		}
 
 		limit, _ := cmd.Flags().GetInt("limit")

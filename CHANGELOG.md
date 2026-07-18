@@ -7,6 +7,25 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.4.3] — 2026-07-18
+
+### Fixed
+
+- **`rules list` gives an actionable error for device agent keys** (`cmd/rules.go`):
+  after `phoenix-firewall enroll`, `agent.toml` stores a device AGENT key
+  (`phx_fwagent_*`). `GET /api/v1/firewall/rules` only accepts self-service
+  Malware Firewall keys (`phx_fw_*`), webhook keys (`phx_whk_*`), or a JWT, so
+  `rules list` (which reads `api_key` from config) previously sent the agent key
+  and surfaced an opaque server `401 {"detail":"Authentication required"}`. It
+  now detects a `phx_fwagent_` credential and fails early with a clear message
+  telling the user to pass a `phx_fw_*` key (or set `PHOENIX_API_KEY`). No API
+  or auth change — the endpoint's accepted credential types are unchanged; this
+  is purely a client-side diagnostics improvement. (The `--api-url` fallback to
+  the enrolled `agent.toml` value already works via viper config precedence and
+  needed no change.)
+
+---
+
 ## [0.4.2] — 2026-07-18
 
 ### Fixed
