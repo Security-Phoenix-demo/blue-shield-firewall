@@ -31,6 +31,7 @@ builds:
       - -X github.com/Security-Phoenix-demo/blue-shield-firewall/cmd.version={{.Version}}
       - -X github.com/Security-Phoenix-demo/blue-shield-firewall/cmd.commit={{.Commit}}
       - -X github.com/Security-Phoenix-demo/blue-shield-firewall/cmd.date={{.Date}}
+      - -X github.com/Security-Phoenix-demo/blue-shield-firewall/internal/version.Agent={{.Version}}
 
 archives:
   - id: default

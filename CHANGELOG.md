@@ -7,6 +7,38 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.4.4] — 2026-07-18
+
+### Fixed
+
+- **Endpoint heartbeats now succeed (were rejected on every send)** — the agent's
+  heartbeat payload (`internal/telemetry/heartbeat.go`) violated the backend
+  `POST /api/v1/firewall/agent/heartbeat` contract three ways, so `last_seen_at`
+  never updated and devices never appeared online in the Endpoint Heartbeat UI:
+  - **Missing `uptime_seconds`** — the field is required (`ge=0`) but was never
+    sent → 422. Now tracked from agent start and included.
+  - **Empty `integrity` hashes** — the SHA256s were computed from hardcoded
+    system paths (`/usr/local/bin/phoenix-firewall`, `/etc/phoenix-firewall/*`)
+    that don't exist in a no-root userland install, yielding empty strings that
+    failed the backend's `min_length=64` → 422. Now resolved from the real
+    locations (running executable via `os.Executable()`, `~/.config/phoenix-firewall/`
+    for `agent.toml`/CA), with a 64-char sentinel (`integrity.HashFileOrUnknown`,
+    `internal/integrity/hash.go`) when a file is genuinely absent.
+  - **Empty `tenant_id`** — the agent sent `tenant_id: ""` when config carried no
+    tenant, failing the backend's `UUID | None` parse → 422. The field is now
+    omitted when empty (the backend resolves the tenant from the API key).
+- **Heartbeats report the real agent version** (`internal/version/version.go`,
+  `Makefile`, `.goreleaser.yml`): `version.Agent` was a hardcoded `"0.4.0"` that
+  no build ever overrode (ldflags only set `cmd.version`), so every device
+  reported `agent_version: 0.4.0`. Both `make build` and goreleaser now inject
+  `-X .../internal/version.Agent=<version>`.
+
+> Backend counterpart (server-side, shipped separately): `record_heartbeat` put a
+> raw `datetime` in `collector_health`, so `json.dumps` raised a 500 *after* the
+> row was written; it now uses the ISO-8601 string.
+
+---
+
 ## [0.4.3] — 2026-07-18
 
 ### Fixed

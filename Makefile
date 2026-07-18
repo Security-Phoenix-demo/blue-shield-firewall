@@ -10,7 +10,8 @@ BUILD_DATE  ?= $(shell date -u '+%Y-%m-%dT%H:%M:%SZ')
 LDFLAGS := -s -w \
 	-X $(MODULE)/cmd.version=$(VERSION) \
 	-X $(MODULE)/cmd.commit=$(GIT_COMMIT) \
-	-X $(MODULE)/cmd.date=$(BUILD_DATE)
+	-X $(MODULE)/cmd.date=$(BUILD_DATE) \
+	-X $(MODULE)/internal/version.Agent=$(VERSION)
 
 DIST_DIR := dist
 

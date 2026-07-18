@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"path/filepath"
 	"runtime"
 	"time"
 
@@ -20,22 +21,24 @@ var httpClient = &http.Client{Timeout: 10 * time.Second}
 
 // HeartbeatSender sends periodic heartbeat payloads to /api/v1/firewall/agent/heartbeat.
 type HeartbeatSender struct {
-	apiURL   string
-	apiKey   string
-	tenantID string
-	deviceID string
-	stopCh   chan struct{}
+	apiURL    string
+	apiKey    string
+	tenantID  string
+	deviceID  string
+	startedAt time.Time
+	stopCh    chan struct{}
 	// OnResult, if set, is invoked after each send with whether it succeeded.
 	OnResult func(ok bool)
 }
 
 func NewHeartbeatSender(apiURL, apiKey, tenantID, deviceID string) *HeartbeatSender {
 	return &HeartbeatSender{
-		apiURL:   apiURL,
-		apiKey:   apiKey,
-		tenantID: tenantID,
-		deviceID: deviceID,
-		stopCh:   make(chan struct{}),
+		apiURL:    apiURL,
+		apiKey:    apiKey,
+		tenantID:  tenantID,
+		deviceID:  deviceID,
+		startedAt: time.Now(),
+		stopCh:    make(chan struct{}),
 	}
 }
 
@@ -68,12 +71,17 @@ func (h *HeartbeatSender) report(err error) {
 }
 
 func (h *HeartbeatSender) send() error {
+	binPath, caPath, tomlPath := integrityPaths()
+	uptime := int(time.Since(h.startedAt).Seconds())
+	if uptime < 0 {
+		uptime = 0 // clock skew guard; backend requires uptime_seconds >= 0
+	}
 	payload := map[string]interface{}{
-		"tenant_id":     h.tenantID,
-		"device_id":     h.deviceID,
-		"agent_version": version.Agent,
-		"ts":            time.Now().UTC().Format(time.RFC3339),
-		"proxy_health":  "running",
+		"device_id":      h.deviceID,
+		"agent_version":  version.Agent,
+		"ts":             time.Now().UTC().Format(time.RFC3339),
+		"uptime_seconds": uptime,
+		"proxy_health":   "running",
 		"collector_capabilities": []string{
 			"package_manager_shim",
 			"developer_software_inventory",
@@ -86,10 +94,14 @@ func (h *HeartbeatSender) send() error {
 			"arch":         runtime.GOARCH,
 			"team_id_hint": os.Getenv("PHOENIX_TEAM_ID"),
 		},
+		// Hashes of the actual install artifacts. Paths are resolved for the
+		// real (incl. userland ~/.config) layout — the previous hardcoded
+		// /usr/local/bin + /etc paths do not exist in a no-root install, which
+		// produced empty hashes the backend rejected (min_length=64 -> 422).
 		"integrity": map[string]string{
-			"phoenix_firewall_bin_sha256": integrity.HashFileBestEffort("/usr/local/bin/phoenix-firewall"),
-			"ca_pem_sha256":               integrity.HashFileBestEffort("/etc/phoenix-firewall/ca.pem"),
-			"agent_toml_sha256":           integrity.HashFileBestEffort("/etc/phoenix-firewall/agent.toml"),
+			"phoenix_firewall_bin_sha256": integrity.HashFileOrUnknown(binPath),
+			"ca_pem_sha256":               integrity.HashFileOrUnknown(caPath),
+			"agent_toml_sha256":           integrity.HashFileOrUnknown(tomlPath),
 		},
 		"stats": map[string]int{
 			"evaluations_5m": 0,
@@ -101,6 +113,11 @@ func (h *HeartbeatSender) send() error {
 		// (proxy unreachable + fail_mode=open). Lets the backend flag hosts where
 		// packages — including test samples — executed without being scanned.
 		"direct_install_bypass_events": DrainBypassEvents(),
+	}
+	// Only include tenant_id when we actually have one — the backend resolves the
+	// tenant from the API key, and an empty string fails its UUID validation (422).
+	if h.tenantID != "" {
+		payload["tenant_id"] = h.tenantID
 	}
 	b, _ := json.Marshal(payload)
 	req, err := http.NewRequest(http.MethodPost, h.apiURL+"/api/v1/firewall/agent/heartbeat", bytes.NewReader(b))
@@ -126,4 +143,31 @@ func hostnameBestEffort() string {
 		return ""
 	}
 	return hostname
+}
+
+// integrityPaths resolves the real locations of the integrity-critical files.
+// The binary is the running executable itself; the CA and agent.toml live under
+// the userland config dir (~/.config/phoenix-firewall), matching where `enroll`
+// and the shims write them. System-wide installs are covered by falling back to
+// the legacy /etc path when the userland file is absent.
+func integrityPaths() (binPath, caPath, tomlPath string) {
+	binPath, _ = os.Executable()
+
+	caPath = "/etc/phoenix-firewall/ca.pem"
+	tomlPath = "/etc/phoenix-firewall/agent.toml"
+	if home, err := os.UserHomeDir(); err == nil {
+		cfgDir := filepath.Join(home, ".config", "phoenix-firewall")
+		if p := filepath.Join(cfgDir, "phoenix-ca.crt"); fileExists(p) {
+			caPath = p
+		}
+		if p := filepath.Join(cfgDir, "agent.toml"); fileExists(p) {
+			tomlPath = p
+		}
+	}
+	return binPath, caPath, tomlPath
+}
+
+func fileExists(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && !info.IsDir()
 }

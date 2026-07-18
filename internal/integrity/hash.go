@@ -44,6 +44,22 @@ func HashFileBestEffort(path string) string {
 	return h
 }
 
+// UnknownHash is the 64-char sentinel emitted when a file cannot be hashed. It
+// keeps telemetry payloads schema-valid (the backend requires a 64-char hex
+// string for integrity hashes) while signalling "hash unavailable".
+const UnknownHash = "0000000000000000000000000000000000000000000000000000000000000000"
+
+// HashFileOrUnknown returns the hex SHA-256 of the file at path, or UnknownHash
+// if it cannot be read. Unlike HashFileBestEffort (which returns ""), the result
+// is always a valid 64-char hash, satisfying strict server-side length
+// validation for best-effort integrity fields.
+func HashFileOrUnknown(path string) string {
+	if h := HashFileBestEffort(path); h != "" {
+		return h
+	}
+	return UnknownHash
+}
+
 func hashFile(path string) (string, error) {
 	f, err := os.Open(path)
 	if err != nil {
