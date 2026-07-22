@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -13,7 +15,15 @@ func TestRunEnrollStoresTeamIDAsHint(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 
-	if err := runEnroll("key-1", "https://api.example.test", "tenant-hint", "00000000-0000-0000-0000-000000000001", "team-hint"); err != nil {
+	// Mock backend returning a non-auth (500) error so enrollment is best-effort
+	// (not fatal) and the PASSED values are what get persisted — while keeping
+	// the test hermetic (no real network / proxy interference).
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer srv.Close()
+
+	if err := runEnroll("key-1", srv.URL, "tenant-hint", "00000000-0000-0000-0000-000000000001", "team-hint"); err != nil {
 		t.Fatalf("runEnroll: %v", err)
 	}
 
@@ -24,7 +34,7 @@ func TestRunEnrollStoresTeamIDAsHint(t *testing.T) {
 	content := string(data)
 	for _, want := range []string{
 		`api_key = "key-1"`,
-		`api_url = "https://api.example.test"`,
+		`api_url = "` + srv.URL + `"`,
 		`tenant_id = "tenant-hint"`,
 		`device_id = "00000000-0000-0000-0000-000000000001"`,
 		`team_id = "team-hint"`,
@@ -89,7 +99,16 @@ mode = "open"
 		t.Fatal(err)
 	}
 
-	if err := runEnroll("new-key", "https://phxintel.security", "tenant-xyz", "", ""); err != nil {
+	// Mock backend so the test is hermetic — it must not depend on (or be
+	// rejected by) the real Phoenix backend. The test only cares that tenant_id
+	// is written as a top-level key, not about the enrollment result itself.
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"device_id":"00000000-0000-0000-0000-000000000002","api_key":"phx_fwagent_x","api_key_id":"k"}`))
+	}))
+	defer srv.Close()
+
+	if err := runEnroll("new-key", srv.URL, "tenant-xyz", "", ""); err != nil {
 		t.Fatalf("runEnroll: %v", err)
 	}
 
