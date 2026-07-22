@@ -2,19 +2,18 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"syscall"
-	"time"
 
 	"github.com/Security-Phoenix-demo/blue-shield-firewall/internal/policy"
 	"github.com/Security-Phoenix-demo/blue-shield-firewall/internal/proxy"
 	"github.com/Security-Phoenix-demo/blue-shield-firewall/internal/telemetry"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 var proxyCmd = &cobra.Command{
@@ -87,9 +86,6 @@ var proxyCmd = &cobra.Command{
 			fmt.Fprintln(os.Stderr, "Policy freshness enforcement: ON (blocks installs when policy stale > 24h)")
 		}
 
-		stopHeartbeat := startEndpointHeartbeat(cfg)
-		defer stopHeartbeat()
-
 		srv := proxy.NewServer(cfg)
 		srv.SetCA(ca)
 
@@ -97,19 +93,32 @@ var proxyCmd = &cobra.Command{
 		hs := proxy.NewHealthState(version, cfg.Port, cfg.FailMode)
 		srv.SetHealthState(hs)
 
-		// Readiness: drive backend reachability from heartbeat results and warn
-		// clearly when the Phoenix backend cannot be reached.
-		tenantID := viper.GetString("tenant_id")
-		deviceID := viper.GetString("device_id")
-		hb := telemetry.NewHeartbeatSender(cfg.APIUrl, cfg.APIKey, tenantID, deviceID)
-		hb.OnResult = func(ok bool) {
-			hs.SetBackendReachable(ok)
-			if !ok {
-				log.Printf("[phoenix-firewall] WARNING: cannot reach Phoenix backend at %s — operating in fail_mode=%s", cfg.APIUrl, cfg.FailMode)
+		// Single endpoint heartbeat. Its result drives backend-reachability
+		// readiness and a clear warning that distinguishes an auth rejection
+		// (wrong API key) from a genuinely unreachable backend.
+		stopHeartbeat := startEndpointHeartbeat(cfg, func(err error) {
+			hs.SetBackendReachable(err == nil)
+			if err == nil {
+				return
 			}
-		}
-		hb.Start(5 * time.Minute)
-		defer hb.Stop()
+			var he *telemetry.HeartbeatError
+			switch {
+			case errors.As(err, &he) && he.IsAuth():
+				// The backend is reachable but rejected the credentials — the
+				// most common cause is the wrong API key (e.g. a phx_fw_
+				// enrollment key shadowing the phx_fwagent_ device key via
+				// PHOENIX_API_KEY). Say so instead of "cannot reach".
+				log.Printf("[phoenix-firewall] WARNING: Phoenix backend rejected the API key (HTTP %d) at %s — check api_key / PHOENIX_API_KEY (enrollment keys are not valid here; use the phx_fwagent_ device key); operating in fail_mode=%s: %v",
+					he.StatusCode, cfg.APIUrl, cfg.FailMode, err)
+			case errors.As(err, &he):
+				log.Printf("[phoenix-firewall] WARNING: Phoenix backend returned HTTP %d at %s — operating in fail_mode=%s: %v",
+					he.StatusCode, cfg.APIUrl, cfg.FailMode, err)
+			default:
+				log.Printf("[phoenix-firewall] WARNING: cannot reach Phoenix backend at %s — operating in fail_mode=%s: %v",
+					cfg.APIUrl, cfg.FailMode, err)
+			}
+		})
+		defer stopHeartbeat()
 
 		fmt.Printf("[phoenix-firewall] fail_mode=%s; health endpoint at http://127.0.0.1:%d%s\n", cfg.FailMode, cfg.Port, proxy.HealthPath)
 

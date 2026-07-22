@@ -109,7 +109,9 @@ func (c *Client) EnrollDevice(payload EnrollRequest) (*EnrollResponse, error) {
 		return nil, fmt.Errorf("read response: %w", err)
 	}
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
-		return nil, fmt.Errorf("firewall API returned %d: %s", resp.StatusCode, string(respBody))
+		// Typed so callers (enroll) can distinguish an auth rejection (401/403)
+		// from a transient failure and avoid claiming success / clobbering config.
+		return nil, &APIError{StatusCode: resp.StatusCode, Body: string(respBody)}
 	}
 
 	var out EnrollResponse

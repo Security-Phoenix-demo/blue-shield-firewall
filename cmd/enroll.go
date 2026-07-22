@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -89,6 +90,11 @@ func runEnrollWithOptions(opts enrollOptions) error {
 		Metadata:       opts.Identity.Metadata("shim"),
 	}
 
+	// backendEnrolled records whether the backend actually registered this
+	// device, so the final message reflects reality instead of always claiming
+	// "you're good to go".
+	backendEnrolled := false
+
 	if opts.BootstrapToken != "" {
 		// One-time bootstrap token: enrollment must succeed (the token is
 		// single-use), so surface any error to the caller.
@@ -102,21 +108,31 @@ func runEnrollWithOptions(opts enrollOptions) error {
 		if enrolled.DeviceID != "" {
 			opts.DeviceID = enrolled.DeviceID
 		}
+		backendEnrolled = true
 	} else {
-		// API-key enrollment is best-effort. On comms failure we keep local
-		// config so the user is not blocked, but we tell them clearly.
-		c := client.New(opts.APIURL, opts.APIKey)
-		if resp, err := c.EnrollDevice(enrollReq); err != nil {
-			fmt.Fprintf(os.Stderr, "[phoenix-firewall] WARNING: backend enrollment failed: %v\n", err)
-			fmt.Fprintln(os.Stderr, "[phoenix-firewall] continuing with local config; re-run 'phoenix-firewall enroll' once connectivity is restored")
-		} else {
+		// API-key enrollment. A definitive auth rejection (401/403) means the
+		// key is invalid: fail hard WITHOUT touching local config, so we never
+		// overwrite a working key or claim success on a rejected one. A
+		// transient failure (network / 5xx) is tolerated best-effort.
+		resp, err := client.New(opts.APIURL, opts.APIKey).EnrollDevice(enrollReq)
+		switch {
+		case err == nil:
 			if resp.APIKey != "" {
-				opts.APIKey = resp.APIKey // backend issued an agent key — persist that
+				opts.APIKey = resp.APIKey // backend issued a device-bound key — persist that
 			}
 			if resp.DeviceID != "" {
 				opts.DeviceID = resp.DeviceID
 			}
+			backendEnrolled = true
 			fmt.Printf("[phoenix-firewall] registered device %s with backend\n", opts.DeviceID)
+		default:
+			var apiErr *client.APIError
+			if errors.As(err, &apiErr) && apiErr.IsAuth() {
+				return fmt.Errorf("enrollment rejected by %s: the API key is invalid or expired (HTTP %d) — check the key (enrollment keys look like phx_fw_...; get one at https://phxintel.security). Local config was left unchanged: %w",
+					opts.APIURL, apiErr.StatusCode, err)
+			}
+			fmt.Fprintf(os.Stderr, "[phoenix-firewall] WARNING: backend enrollment could not be completed: %v\n", err)
+			fmt.Fprintln(os.Stderr, "[phoenix-firewall] saving local config unverified; re-run 'phoenix-firewall enroll' once connectivity is restored")
 		}
 	}
 
@@ -160,11 +176,15 @@ func runEnrollWithOptions(opts enrollOptions) error {
 	// Explicitly chmod to 0600 — WriteFile perm only applies on O_CREATE;
 	// a pre-existing file retains its original permissions.
 	_ = os.Chmod(tomlPath, 0600)
-	fmt.Printf("[phoenix-firewall] enrolled: API key written to %s\n", tomlPath)
+	fmt.Printf("[phoenix-firewall] config written to %s\n", tomlPath)
 	if opts.TeamID != "" {
 		fmt.Println("[phoenix-firewall] team_id stored as a non-authoritative collector hint; Phoenix resolves access server-side.")
 	}
-	fmt.Println("[phoenix-firewall] you're good to go — shims will evaluate packages via Phoenix.")
+	if backendEnrolled {
+		fmt.Println("[phoenix-firewall] you're good to go — shims will evaluate packages via Phoenix.")
+	} else {
+		fmt.Println("[phoenix-firewall] NOTE: device is NOT yet registered with the backend — re-run 'phoenix-firewall enroll' once connectivity is restored.")
+	}
 	return nil
 }
 

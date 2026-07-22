@@ -5,15 +5,41 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/Security-Phoenix-demo/blue-shield-firewall/internal/integrity"
 	"github.com/Security-Phoenix-demo/blue-shield-firewall/internal/version"
 )
+
+// HeartbeatError is returned when the heartbeat endpoint responds with a non-2xx
+// status. It is distinct from a transport error (backend genuinely unreachable),
+// so callers can tell an auth rejection (e.g. a bad/wrong API key -> 401) apart
+// from "cannot connect" and log an actionable message instead of a misleading
+// "cannot reach backend".
+type HeartbeatError struct {
+	StatusCode int
+	Body       string
+}
+
+func (e *HeartbeatError) Error() string {
+	if e.Body != "" {
+		return fmt.Sprintf("heartbeat rejected: HTTP %d: %s", e.StatusCode, e.Body)
+	}
+	return fmt.Sprintf("heartbeat rejected: HTTP %d", e.StatusCode)
+}
+
+// IsAuth reports whether the rejection was an authentication/authorization
+// failure (missing, invalid, or wrong-scope API key) rather than another
+// server-side error.
+func (e *HeartbeatError) IsAuth() bool {
+	return e.StatusCode == http.StatusUnauthorized || e.StatusCode == http.StatusForbidden
+}
 
 // httpClient carries an explicit timeout so a black-holed network can't hang
 // the heartbeat goroutine indefinitely.
@@ -27,8 +53,11 @@ type HeartbeatSender struct {
 	deviceID  string
 	startedAt time.Time
 	stopCh    chan struct{}
-	// OnResult, if set, is invoked after each send with whether it succeeded.
-	OnResult func(ok bool)
+	// OnResult, if set, is invoked after each send with the send error (nil on
+	// success). A *HeartbeatError means the backend responded but rejected the
+	// request (e.g. 401 auth failure); any other non-nil error means the backend
+	// could not be reached.
+	OnResult func(err error)
 }
 
 func NewHeartbeatSender(apiURL, apiKey, tenantID, deviceID string) *HeartbeatSender {
@@ -66,7 +95,7 @@ func (h *HeartbeatSender) loop(interval time.Duration) {
 
 func (h *HeartbeatSender) report(err error) {
 	if h.OnResult != nil {
-		h.OnResult(err == nil)
+		h.OnResult(err)
 	}
 }
 
@@ -132,7 +161,10 @@ func (h *HeartbeatSender) send() error {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("heartbeat returned %d", resp.StatusCode)
+		// Include a bounded body snippet so the caller can log the real reason
+		// (e.g. {"detail":"Invalid or expired API key"}) rather than a bare code.
+		snippet, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
+		return &HeartbeatError{StatusCode: resp.StatusCode, Body: strings.TrimSpace(string(snippet))}
 	}
 	return nil
 }

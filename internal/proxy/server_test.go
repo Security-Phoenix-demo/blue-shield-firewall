@@ -575,7 +575,7 @@ func TestBlockResponseFormat(t *testing.T) {
 func TestFirewallClient_BlockedPackage(t *testing.T) {
 	// Mock firewall API
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/v1/firewall/evaluate" {
+		if r.URL.Path != "/api/v1/firewall/agent/evaluate" {
 			t.Errorf("unexpected path: %s", r.URL.Path)
 			w.WriteHeader(http.StatusNotFound)
 			return
@@ -587,7 +587,7 @@ func TestFirewallClient_BlockedPackage(t *testing.T) {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"results":[{"package":"evil-pkg","version":"1.0.0","ecosystem":"npm","action":"block","mpi":{"signals":["CS-001","NS-001"],"confidence":0.99,"threat_type":"dropper","mitre_techniques":["T1195.002"]},"ps_oss_score":95}],"evaluated_at":"2026-04-08T00:00:00Z","cache_ttl_seconds":300}`))
+		_, _ = w.Write([]byte(`{"verdict":"block","rule_ids":["CS-001","NS-001"],"reason":"dropper"}`))
 	}))
 	defer srv.Close()
 
@@ -611,7 +611,7 @@ func TestFirewallClient_BlockedPackage(t *testing.T) {
 func TestFirewallClient_AllowedPackage(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"results":[{"package":"express","version":"4.18.2","ecosystem":"npm","action":"allow","mpi":{"signals":[],"confidence":0.0,"mitre_techniques":[]},"ps_oss_score":5}],"evaluated_at":"2026-04-08T00:00:00Z","cache_ttl_seconds":300}`))
+		_, _ = w.Write([]byte(`{"verdict":"allow","rule_ids":[],"reason":"allow"}`))
 	}))
 	defer srv.Close()
 
@@ -851,7 +851,7 @@ func TestStrictMode_WarnBecomesBlock(t *testing.T) {
 	// Create a mock firewall API that returns "warn"
 	warnSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"results":[{"package":"risky-pkg","version":"1.0.0","ecosystem":"npm","action":"warn","mpi":{"signals":["SU-001"],"confidence":0.6,"mitre_techniques":[]},"ps_oss_score":40}]}`))
+		_, _ = w.Write([]byte(`{"verdict":"warn","rule_ids":["SU-001"],"reason":"suspicious"}`))
 	}))
 	defer warnSrv.Close()
 

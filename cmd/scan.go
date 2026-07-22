@@ -55,6 +55,12 @@ var scanCmd = &cobra.Command{
 
 		// Create firewall client
 		fwClient := client.New(cfg.APIUrl, cfg.APIKey)
+		if cfg.TenantID != "" {
+			fwClient = fwClient.WithTenantID(cfg.TenantID)
+		}
+		if cfg.DeviceID != "" {
+			fwClient = fwClient.WithDeviceID(cfg.DeviceID)
+		}
 		reporter := proxy.NewReporter()
 
 		// Check each package

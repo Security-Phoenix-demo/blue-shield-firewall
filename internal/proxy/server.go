@@ -97,6 +97,9 @@ func (s *Server) StartWithContext(ctx context.Context) error {
 	if s.cfg.TenantID != "" {
 		fwClient = fwClient.WithTenantID(s.cfg.TenantID)
 	}
+	if s.cfg.DeviceID != "" {
+		fwClient = fwClient.WithDeviceID(s.cfg.DeviceID)
+	}
 	s.handler = NewRequestHandler(matcher, fwClient, s.cfg.Verbose)
 	cache := NewResultCache(defaultCacheSize, defaultCacheTTL)
 	s.handler.SetCache(cache)

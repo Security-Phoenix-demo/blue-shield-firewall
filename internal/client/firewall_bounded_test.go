@@ -17,7 +17,7 @@ func TestCheck_RejectsOversizedResponse(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		// Much larger than the 1KB cap.
-		_, _ = w.Write([]byte(`{"results":[{"action":"allow","reason":"` + strings.Repeat("A", 4096) + `"}]}`))
+		_, _ = w.Write([]byte(`{"verdict":"allow","reason":"` + strings.Repeat("A", 4096) + `"}`))
 	}))
 	defer srv.Close()
 
@@ -31,7 +31,7 @@ func TestCheck_RejectsOversizedResponse(t *testing.T) {
 func TestCheck_NormalResponseStillParses(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"results":[{"package":"x","version":"1.0.0","ecosystem":"npm","action":"allow"}]}`))
+		_, _ = w.Write([]byte(`{"verdict":"allow","rule_ids":[],"reason":"allow"}`))
 	}))
 	defer srv.Close()
 

@@ -35,7 +35,7 @@ func TestCheck_TenantIDWired(t *testing.T) {
 		b, _ := io.ReadAll(r.Body)
 		_ = json.Unmarshal(b, &captured)
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"results":[{"package":"lodash","version":"4.17.21","ecosystem":"npm","action":"allow"}]}`))
+		_, _ = w.Write([]byte(`{"verdict":"allow","rule_ids":[],"reason":"allow"}`))
 	}))
 	defer srv.Close()
 

@@ -119,7 +119,7 @@ func runSystemMode() error {
 		log.Println("[phoenix-firewall] policy freshness enforcement: ON (blocks installs when policy stale > 24h)")
 	}
 
-	stopHeartbeat := startEndpointHeartbeat(cfg)
+	stopHeartbeat := startEndpointHeartbeat(cfg, nil)
 	defer stopHeartbeat()
 
 	srv := proxy.NewServer(cfg)

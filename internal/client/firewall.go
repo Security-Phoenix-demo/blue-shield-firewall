@@ -36,6 +36,7 @@ type Client struct {
 	baseURL    string
 	apiKey     string
 	tenantID   string
+	deviceID   string
 	httpClient *http.Client
 }
 
@@ -45,7 +46,11 @@ func New(baseURL, apiKey string) *Client {
 		baseURL: baseURL,
 		apiKey:  apiKey,
 		httpClient: &http.Client{
-			Timeout: 5 * time.Second,
+			// Package evaluation can be slow when the backend analyzes a
+			// first-seen package (malware-intel lookup); a 5s cap made
+			// evaluations time out against production and fail open. Other
+			// calls (bypass verify, enroll) complete well within this.
+			Timeout: 30 * time.Second,
 		},
 	}
 }
@@ -61,39 +66,40 @@ func (c *Client) WithTenantID(tenantID string) *Client {
 	return &clone
 }
 
-// evaluateRequest is the JSON body sent to the firewall evaluate endpoint.
-type evaluateRequest struct {
-	Packages []packageEntry `json:"packages"`
-	// TenantID links this check to a Phoenix organization so the backend applies
-	// org-scoped allow/block rules. Omitted when empty (anonymous/global policy).
+// WithDeviceID returns a copy of the client with the given device ID attached.
+// The agent evaluate endpoint requires the enrolled device_id — it verifies the
+// device belongs to the API key's tenant before evaluating.
+func (c *Client) WithDeviceID(deviceID string) *Client {
+	if c == nil {
+		return nil
+	}
+	clone := *c
+	clone.deviceID = deviceID
+	return &clone
+}
+
+// agentEvaluateRequest is the JSON body for POST /api/v1/firewall/agent/evaluate.
+// The agent endpoint evaluates a single package and authorizes with the
+// device-bound FIREWALL_AGENT key (x-api-key). It is distinct from the
+// human/JWT /api/v1/firewall/evaluate route, which rejects agent keys (401).
+type agentEvaluateRequest struct {
+	// TenantID scopes the evaluation to a Phoenix organization. Omitted when
+	// empty; the backend then resolves the tenant from the API key.
 	TenantID string `json:"tenant_id,omitempty"`
-}
-
-type packageEntry struct {
+	// DeviceID is the enrolled device UUID; required by the backend.
+	DeviceID  string `json:"device_id"`
 	Ecosystem string `json:"ecosystem"`
-	Name      string `json:"name"`
-	Version   string `json:"version"`
+	Package   string `json:"package"`
+	Version   string `json:"version,omitempty"`
+	// Trigger identifies the interception surface: shim | mcp | bridge.
+	Trigger string `json:"trigger"`
 }
 
-// evaluateResponse is the JSON response from the firewall evaluate endpoint.
-type evaluateResponse struct {
-	Results []evaluateResult `json:"results"`
-}
-
-type mpiData struct {
-	Signals         []string `json:"signals"`
-	Confidence      float64  `json:"confidence"`
-	ThreatType      string   `json:"threat_type,omitempty"`
-	MitreTechniques []string `json:"mitre_techniques"`
-}
-
-type evaluateResult struct {
-	Package    string  `json:"package"`
-	Version    string  `json:"version"`
-	Ecosystem  string  `json:"ecosystem"`
-	Action     string  `json:"action"`
-	MPI        mpiData `json:"mpi"`
-	PsOssScore *int    `json:"ps_oss_score,omitempty"`
+// agentEvaluateResponse mirrors the backend EvaluateResponse.
+type agentEvaluateResponse struct {
+	Verdict string   `json:"verdict"` // "allow" | "warn" | "block"
+	RuleIDs []string `json:"rule_ids"`
+	Reason  string   `json:"reason"`
 }
 
 // bypassResponse is the firewall API's answer to a bypass-authorization check.
@@ -149,15 +155,13 @@ func (c *Client) VerifyBypass(token string) (bool, string, error) {
 
 // Check evaluates a package against the Phoenix firewall API.
 func (c *Client) Check(ecosystem, name, version string) (*CheckResult, error) {
-	reqBody := evaluateRequest{
-		Packages: []packageEntry{
-			{
-				Ecosystem: ecosystem,
-				Name:      name,
-				Version:   version,
-			},
-		},
-		TenantID: c.tenantID,
+	reqBody := agentEvaluateRequest{
+		TenantID:  c.tenantID,
+		DeviceID:  c.deviceID,
+		Ecosystem: ecosystem,
+		Package:   name,
+		Version:   version,
+		Trigger:   "shim",
 	}
 
 	jsonBody, err := json.Marshal(reqBody)
@@ -165,14 +169,16 @@ func (c *Client) Check(ecosystem, name, version string) (*CheckResult, error) {
 		return nil, fmt.Errorf("marshal request: %w", err)
 	}
 
-	url := fmt.Sprintf("%s/api/v1/firewall/evaluate", c.baseURL)
+	url := fmt.Sprintf("%s/api/v1/firewall/agent/evaluate", c.baseURL)
 	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(jsonBody))
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 	if c.apiKey != "" {
-		req.Header.Set("Authorization", "Bearer "+c.apiKey)
+		// x-api-key is the canonical agent auth header (matches heartbeat and
+		// the other /agent endpoints); the Bearer form hit the human/JWT route.
+		req.Header.Set("X-API-Key", c.apiKey)
 	}
 
 	resp, err := c.httpClient.Do(req)
@@ -199,49 +205,47 @@ func (c *Client) Check(ecosystem, name, version string) (*CheckResult, error) {
 		return nil, fmt.Errorf("firewall API returned %d: %s", resp.StatusCode, snippet)
 	}
 
-	var evalResp evaluateResponse
+	var evalResp agentEvaluateResponse
 	if err := json.Unmarshal(body, &evalResp); err != nil {
 		return nil, fmt.Errorf("unmarshal response: %w", err)
 	}
 
-	if len(evalResp.Results) == 0 {
-		// No results — treat as allowed/unknown
+	// Map the backend verdict (allow|warn|block) onto CheckResult. Action is
+	// kept as the raw verdict so strict mode (warn -> block) works unchanged.
+	action := evalResp.Verdict
+	if action == "" {
+		// Defensive: an empty/absent verdict is treated as allowed/unknown
+		// rather than silently blocking.
 		return &CheckResult{
 			Allowed: true,
 			Verdict: "unknown",
-			Reason:  "no results from firewall API",
+			Action:  "allow",
+			Reason:  "no verdict from firewall API",
 		}, nil
 	}
 
-	r := evalResp.Results[0]
-	allowed := r.Action != "block"
+	allowed := action != "block"
 	verdict := "safe"
-	if r.Action == "block" {
+	switch action {
+	case "block":
 		verdict = "malicious"
-	} else if r.Action == "warn" {
+	case "warn":
 		verdict = "suspicious"
 	}
 
-	reason := fmt.Sprintf("action=%s", r.Action)
-	if r.MPI.ThreatType != "" {
-		reason = fmt.Sprintf("%s, threat_type=%s", reason, r.MPI.ThreatType)
+	reason := evalResp.Reason
+	if reason == "" {
+		reason = fmt.Sprintf("verdict=%s", action)
 	}
-	if len(r.MPI.Signals) > 0 {
-		reason = fmt.Sprintf("%s, signals=%v", reason, r.MPI.Signals)
-	}
-
-	score := float64(0)
-	if r.PsOssScore != nil {
-		score = float64(*r.PsOssScore)
+	if len(evalResp.RuleIDs) > 0 {
+		reason = fmt.Sprintf("%s, rules=%v", reason, evalResp.RuleIDs)
 	}
 
 	return &CheckResult{
-		Allowed:    allowed,
-		Verdict:    verdict,
-		Reason:     reason,
-		Score:      score,
-		Action:     r.Action,
-		Confidence: r.MPI.Confidence,
+		Allowed: allowed,
+		Verdict: verdict,
+		Reason:  reason,
+		Action:  action,
 	}, nil
 }
 

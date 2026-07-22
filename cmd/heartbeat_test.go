@@ -12,13 +12,13 @@ import (
 
 // nil cfg must return a no-op stop func without panicking.
 func TestStartEndpointHeartbeat_NilCfg(t *testing.T) {
-	stop := startEndpointHeartbeat(nil)
+	stop := startEndpointHeartbeat(nil, nil)
 	stop() // must not panic
 }
 
 // Empty API key must return a no-op stop func.
 func TestStartEndpointHeartbeat_NoAPIKey(t *testing.T) {
-	stop := startEndpointHeartbeat(&config.Config{DeviceID: "dev-1"})
+	stop := startEndpointHeartbeat(&config.Config{DeviceID: "dev-1"}, nil)
 	stop() // must not panic
 }
 
@@ -31,7 +31,7 @@ func TestStartEndpointHeartbeat_StopIdempotent(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	stop := startEndpointHeartbeat(&config.Config{APIUrl: srv.URL, APIKey: "k", DeviceID: "dev-1"})
+	stop := startEndpointHeartbeat(&config.Config{APIUrl: srv.URL, APIKey: "k", DeviceID: "dev-1"}, nil)
 	stop()
 	stop() // second call must not panic (channel double-close guarded by sync.Once)
 }
@@ -50,13 +50,43 @@ func TestStartEndpointHeartbeat_MinInterval(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	stop := startEndpointHeartbeat(&config.Config{APIUrl: srv.URL, APIKey: "k", DeviceID: "dev-1"})
+	stop := startEndpointHeartbeat(&config.Config{APIUrl: srv.URL, APIKey: "k", DeviceID: "dev-1"}, nil)
 	defer stop()
 
 	time.Sleep(2 * time.Second)
 	if got := atomic.LoadInt32(&hits); got != 1 {
 		t.Fatalf("expected exactly 1 send (immediate) within 2s under the 10s clamp; got %d — interval clamp not applied", got)
 	}
+}
+
+// A non-nil onResult must be wired onto the sender and invoked (nil on success).
+// Regression guard for the consolidation that removed the duplicate heartbeat in
+// the proxy command: the single sender must carry the readiness callback.
+func TestStartEndpointHeartbeat_OnResultWired(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
+	var called atomic.Bool
+	stop := startEndpointHeartbeat(
+		&config.Config{APIUrl: srv.URL, APIKey: "k", DeviceID: "dev-1"},
+		func(err error) {
+			if err == nil {
+				called.Store(true)
+			}
+		},
+	)
+	defer stop()
+
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if called.Load() {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatal("onResult was not invoked on the immediate send — callback not wired")
 }
 
 // Verify that the stop closure wraps sync.Once regardless of how many times
@@ -68,7 +98,7 @@ func TestStartEndpointHeartbeat_StopCalledConcurrently(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	stop := startEndpointHeartbeat(&config.Config{APIUrl: srv.URL, APIKey: "k", DeviceID: "d"})
+	stop := startEndpointHeartbeat(&config.Config{APIUrl: srv.URL, APIKey: "k", DeviceID: "d"}, nil)
 	done := make(chan struct{})
 	for i := 0; i < 10; i++ {
 		go func() { stop(); done <- struct{}{} }()

@@ -12,7 +12,12 @@ import (
 	"github.com/Security-Phoenix-demo/blue-shield-firewall/internal/telemetry"
 )
 
-func startEndpointHeartbeat(cfg *config.Config) func() {
+// startEndpointHeartbeat starts a single periodic heartbeat sender for the given
+// config and returns a stop function. If onResult is non-nil it is invoked after
+// each send with the send error (nil on success), letting callers drive
+// backend-reachability readiness and warnings. Returns a no-op stop when there
+// is no API key or resolvable device ID.
+func startEndpointHeartbeat(cfg *config.Config, onResult func(error)) func() {
 	if cfg == nil || cfg.APIKey == "" {
 		return func() {}
 	}
@@ -36,6 +41,7 @@ func startEndpointHeartbeat(cfg *config.Config) func() {
 	}
 
 	sender := telemetry.NewHeartbeatSender(cfg.APIUrl, cfg.APIKey, cfg.TenantID, deviceID)
+	sender.OnResult = onResult
 	sender.Start(interval)
 	log.Printf("[phoenix-firewall] endpoint heartbeat enabled for device %s every %s", deviceID, interval)
 

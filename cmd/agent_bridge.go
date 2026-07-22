@@ -132,6 +132,21 @@ func agentBridgeFallback(ecosystem, pkg, command string) error {
 		apiURL, ecosystem, name, version)
 
 	c := client.New(apiURL, apiKey)
+	if tenantID := viper.GetString("tenant_id"); tenantID != "" {
+		c = c.WithTenantID(tenantID)
+	}
+	// device_id is required by the agent evaluate endpoint. Resolve it the same
+	// way emitInstallActivity does: config, then env, then collected identity.
+	deviceID := viper.GetString("device_id")
+	if deviceID == "" {
+		deviceID = os.Getenv("PHOENIX_DEVICE_ID")
+	}
+	if deviceID == "" {
+		deviceID = endpoint.Collect().DeviceID
+	}
+	if deviceID != "" {
+		c = c.WithDeviceID(deviceID)
+	}
 	result, err := c.Check(ecosystem, name, version)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "[agent-bridge] backend error: %v — failing open\n", err)
