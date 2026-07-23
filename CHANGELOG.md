@@ -7,6 +7,43 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.4.5] — 2026-07-23
+
+### Fixed
+
+- **Agent evaluation no longer silently fails open on every package**
+  (`internal/client/firewall.go`, `cmd/agent_bridge.go`): `Check()` was calling
+  the human/JWT `/api/v1/firewall/evaluate` route with a device agent key, which
+  returned `401` and caused the firewall to fail open — every package was allowed
+  without ever being evaluated. `Check()` now calls the agent route
+  `POST /api/v1/firewall/agent/evaluate` with the single-package body, `device_id`,
+  and `x-api-key` header, so evaluations actually run.
+- **Invalid `enroll --api-key` is now fatal** (`cmd/enroll.go`,
+  `internal/client/errors.go`): a `401` during enrollment previously surfaced a
+  false "you're good to go" and could overwrite a working device key in
+  `agent.toml`. A new typed `client.APIError` makes an auth rejection a hard
+  failure that leaves existing config untouched.
+- **Heartbeat diagnostics distinguish auth rejection from an unreachable backend**
+  (`internal/telemetry/heartbeat.go`): a `401/403` is now reported as an auth
+  error instead of a misleading "cannot reach backend". The proxy also started two
+  heartbeat senders every 5m; these are consolidated into a single sender that
+  carries the readiness/warning callback.
+
+### Added
+
+- **`phoenix-firewall env` command** (`cmd/env.go`): the proxy banner told users
+  to run `phoenix-firewall env` but the command never existed. It now prints the
+  proxy and per-package-manager CA export lines.
+
+### Changed
+
+- **Enroll config tests are hermetic** (`cmd/enroll_test.go`,
+  `cmd/enroll_inventory_test.go`): tests no longer touch real hosts; they point at
+  an `httptest` mock, matching the new auth-fatal enroll behavior and removing
+  `tls: bad certificate` noise.
+
+---
+
 ## [0.4.4] — 2026-07-18
 
 ### Fixed
